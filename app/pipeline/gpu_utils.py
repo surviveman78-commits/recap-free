@@ -1,90 +1,104 @@
 import subprocess
 import shutil
+import re
 from typing import List
 
 _GPU_ENCODER_CHECKED = False
 _GPU_ENCODER_AVAILABLE = False
 _DETECTED_ENCODER = "libx264"
+_ENCODER_DESC = "libx264 (CPU Fallback)"
 
 
-def check_gpu_nvenc_available() -> bool:
-    """
-    Checks if NVIDIA NVENC hardware-accelerated video encoding is supported by
-    both FFmpeg and the current machine's GPU/driver.
-    Caches the result after the first check.
-    """
-    global _GPU_ENCODER_CHECKED, _GPU_ENCODER_AVAILABLE, _DETECTED_ENCODER
+def _detect_gpu_encoder():
+    global _GPU_ENCODER_CHECKED, _GPU_ENCODER_AVAILABLE, _DETECTED_ENCODER, _ENCODER_DESC
 
     if _GPU_ENCODER_CHECKED:
-        return _GPU_ENCODER_AVAILABLE
+        return
 
     _GPU_ENCODER_CHECKED = True
 
     if not shutil.which("ffmpeg"):
         _GPU_ENCODER_AVAILABLE = False
         _DETECTED_ENCODER = "libx264"
-        return False
+        _ENCODER_DESC = "libx264 (CPU Fallback)"
+        return
 
+    # 1. Try h264_nvenc (Standard Linux / Kaggle / Supported Windows drivers)
     try:
-        # 1. Check if FFmpeg has h264_nvenc compiled in
-        proc = subprocess.run(
-            ["ffmpeg", "-encoders"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=5
-        )
-        if "h264_nvenc" not in proc.stdout:
-            _GPU_ENCODER_AVAILABLE = False
-            _DETECTED_ENCODER = "libx264"
-            return False
-
-        # 2. Test actual NVENC hardware initialization with a 1-frame dummy test
-        # (This ensures NVIDIA driver and CUDA hardware are truly operational, e.g. on Kaggle T4 or local RTX)
-        test_cmd = [
+        test_nvenc = [
             "ffmpeg", "-y",
-            "-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.04",
+            "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.04",
             "-c:v", "h264_nvenc",
             "-f", "null", "-"
         ]
-        test_proc = subprocess.run(
-            test_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=8
-        )
-        if test_proc.returncode == 0:
+        p = subprocess.run(test_nvenc, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=8)
+        if p.returncode == 0:
             _GPU_ENCODER_AVAILABLE = True
             _DETECTED_ENCODER = "h264_nvenc"
+            _ENCODER_DESC = "NVIDIA NVENC (GPU)"
             print("[GPU ACCELERATION] NVIDIA NVENC hardware encoding is active and verified.")
-            return True
-        else:
-            _GPU_ENCODER_AVAILABLE = False
-            _DETECTED_ENCODER = "libx264"
-            print(f"[GPU ACCELERATION] NVENC test failed (falling back to CPU libx264): {test_proc.stderr[:120]}")
-            return False
+            return
+    except Exception:
+        pass
 
-    except Exception as e:
-        _GPU_ENCODER_AVAILABLE = False
-        _DETECTED_ENCODER = "libx264"
-        print(f"[GPU ACCELERATION] GPU check exception (using CPU fallback): {e}")
-        return False
+    # 2. Try h264_mf with hardware encoding (Windows NVIDIA RTX / DirectX MFT)
+    try:
+        test_mf = [
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.04",
+            "-pix_fmt", "nv12",
+            "-c:v", "h264_mf",
+            "-hw_encoding", "true",
+            "-f", "null", "-"
+        ]
+        p = subprocess.run(test_mf, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=8)
+        if p.returncode == 0:
+            _GPU_ENCODER_AVAILABLE = True
+            _DETECTED_ENCODER = "h264_mf"
+            m = re.search(r"MFT name:\s*'([^']+)'", p.stderr)
+            mft_name = m.group(1) if m else "GPU Hardware Encoder"
+            _ENCODER_DESC = f"{mft_name} (GPU)"
+            print(f"[GPU ACCELERATION] Hardware MFT encoding is active and verified: {_ENCODER_DESC}")
+            return
+    except Exception:
+        pass
+
+    # 3. Fallback to CPU libx264
+    _GPU_ENCODER_AVAILABLE = False
+    _DETECTED_ENCODER = "libx264"
+    _ENCODER_DESC = "libx264 (CPU Fallback)"
+    print("[GPU ACCELERATION] No hardware GPU encoder available. Using CPU libx264 fallback.")
+
+
+def check_gpu_nvenc_available() -> bool:
+    """Returns True if any GPU hardware-accelerated video encoder is available."""
+    _detect_gpu_encoder()
+    return _GPU_ENCODER_AVAILABLE
 
 
 def get_video_encoder_args(cq: int = 18, crf: int = 17) -> List[str]:
     """
     Returns optimal FFmpeg video encoder arguments for high quality 4K output.
-    If GPU (NVIDIA NVENC) is available, uses h264_nvenc with CQ=18 for ultra-fast rendering.
+    If NVIDIA NVENC or Hardware MFT is available, uses GPU encoding for ultra-fast rendering.
     Otherwise, gracefully falls back to CPU libx264 with CRF=17.
     """
-    if check_gpu_nvenc_available():
+    _detect_gpu_encoder()
+
+    if _DETECTED_ENCODER == "h264_nvenc":
         return [
             "-c:v", "h264_nvenc",
             "-preset", "p4",
             "-cq", str(cq),
             "-b:v", "0",
             "-pix_fmt", "yuv420p"
+        ]
+    elif _DETECTED_ENCODER == "h264_mf":
+        return [
+            "-c:v", "h264_mf",
+            "-hw_encoding", "true",
+            "-rate_control", "quality",
+            "-quality", "95",
+            "-pix_fmt", "nv12"
         ]
     else:
         return [
@@ -96,6 +110,12 @@ def get_video_encoder_args(cq: int = 18, crf: int = 17) -> List[str]:
 
 
 def get_active_encoder_name() -> str:
-    """Returns the name of the currently active video encoder ('h264_nvenc' or 'libx264')."""
-    check_gpu_nvenc_available()
+    """Returns the name of the currently active video encoder."""
+    _detect_gpu_encoder()
     return _DETECTED_ENCODER
+
+
+def get_encoder_hardware_desc() -> str:
+    """Returns human-readable hardware description."""
+    _detect_gpu_encoder()
+    return _ENCODER_DESC

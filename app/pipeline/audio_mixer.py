@@ -104,8 +104,8 @@ class AudioMixer:
 
         if result.returncode != 0:
             # If GPU encoding failed, retry once with CPU libx264 as safety fallback
-            if "h264_nvenc" in encoder_args:
-                print(f"[GPU WARNING] NVENC rendering failed, retrying with CPU (libx264): {result.stderr[:100]}")
+            if "h264_nvenc" in encoder_args or "h264_mf" in encoder_args:
+                print(f"[GPU WARNING] GPU rendering failed, retrying with CPU (libx264): {result.stderr[:100]}")
                 fallback_cmd = [
                     "ffmpeg", "-y",
                     "-i", str(video_path),

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from app.config import settings_manager, DATA_DIR, CUSTOM_VOICES_DIR, CUSTOM_FONTS_DIR
 from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 from app.pipeline.tts_engine import TTSEngine
-from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available
+from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available, get_encoder_hardware_desc
 from app.queue_manager import job_queue_manager
 
 app = FastAPI(
@@ -227,11 +227,11 @@ async def upload_reference_audio(
 @app.get("/api/gpu")
 async def get_gpu_status():
     """Returns GPU hardware acceleration status and active video encoder."""
-    has_nvenc = check_gpu_nvenc_available()
+    has_gpu = check_gpu_nvenc_available()
     return {
-        "gpu_accelerated": has_nvenc,
+        "gpu_accelerated": has_gpu,
         "encoder": get_active_encoder_name(),
-        "hardware": "NVIDIA NVENC (GPU)" if has_nvenc else "libx264 (CPU Fallback)"
+        "hardware": get_encoder_hardware_desc()
     }
 
 
