@@ -8,11 +8,25 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable, Tuple
 import edge_tts
 
-VOXCPM_REPO_DIR = Path(r"C:\Users\Zimmimoo\VoxCPM")
-if VOXCPM_REPO_DIR.exists():
-    voxcpm_src = VOXCPM_REPO_DIR / "src"
-    if str(voxcpm_src) not in sys.path:
-        sys.path.insert(0, str(voxcpm_src))
+# Dynamic candidate directories for VoxCPM repo (Windows local, Kaggle, Linux, Colab)
+CANDIDATE_VOXCPM_DIRS = [
+    Path(r"C:\Users\Zimmimoo\VoxCPM"),
+    Path("/kaggle/working/VoxCPM"),
+    Path.cwd() / "VoxCPM",
+    Path.cwd().parent / "VoxCPM",
+    Path.home() / "VoxCPM"
+]
+
+VOXCPM_REPO_DIR = None
+for _cand in CANDIDATE_VOXCPM_DIRS:
+    if _cand.exists():
+        VOXCPM_REPO_DIR = _cand
+        _src = _cand / "src"
+        if _src.exists() and str(_src) not in sys.path:
+            sys.path.insert(0, str(_src))
+        elif str(_cand) not in sys.path:
+            sys.path.insert(0, str(_cand))
+        break
 
 
 class VoxCPMManager:
@@ -123,9 +137,8 @@ class TTSEngine:
                         "path": str(f)
                     })
 
-        examples_dir = VOXCPM_REPO_DIR / "examples"
-        if examples_dir.exists():
-            for f in examples_dir.glob("*.wav"):
+        if VOXCPM_REPO_DIR and (VOXCPM_REPO_DIR / "examples").exists():
+            for f in (VOXCPM_REPO_DIR / "examples").glob("*.wav"):
                 voices.append({
                     "id": f.name,
                     "name": f"VoxCPM Sample: {f.name}",

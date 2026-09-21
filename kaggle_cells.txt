@@ -11,7 +11,7 @@
 3. အောက်ပါ Cell များကို တစ်ခုပြီးတစ်ခု Copy ကူးထည့်၍ Run ပေးပါ (Shift + Enter)။
 
 ================================================================================
-[CELL 1] - GPU စစ်ဆေးခြင်း၊ FFmpeg နှင့် မြန်မာစာ Font များ ထည့်သွင်းခြင်း
+[CELL 1] - GPU စစ်ဆေးခြင်း၊ FFmpeg၊ မြန်မာ Fonts နှင့် VoxCPM2 Voice Clone Model ဒေါင်းလုဒ်လုပ်ခြင်း
 ================================================================================
 # 1. GPU Check & System Packages
 !nvidia-smi
@@ -20,31 +20,38 @@ print("Installing FFmpeg and Myanmar Fonts for Subtitle Rendering...")
 !apt-get update -qq
 !apt-get install -y -qq ffmpeg fonts-noto-core fonts-sil-padauk fonts-myanmar libsndfile1
 
-print("Installing Python Dependencies...")
-!pip install -q fastapi uvicorn python-multipart pydantic groq google-genai edge-tts soundfile yt-dlp requests
+print("Installing Studio & VoxCPM2 Voice Clone Dependencies...")
+!pip install -q fastapi uvicorn python-multipart pydantic groq google-genai edge-tts soundfile yt-dlp requests transformers accelerate huggingface_hub librosa torchaudio sentencepiece
 
-print("✅ Cell 1 Setup Complete!")
+print("Cloning VoxCPM2 Repository and Installing Package...")
+!rm -rf /kaggle/working/VoxCPM
+!git clone https://github.com/OpenBMB/VoxCPM.git /kaggle/working/VoxCPM
+%pip install -q -e /kaggle/working/VoxCPM
+
+print("⚡ Pre-downloading VoxCPM2 Model Weights from HuggingFace (openbmb/VoxCPM2)...")
+from huggingface_hub import snapshot_download
+snapshot_download(repo_id="openbmb/VoxCPM2")
+
+print("✅ Cell 1 Setup Complete: FFmpeg, Myanmar Fonts & VoxCPM2 Model Ready!")
 
 
 ================================================================================
-[CELL 2] - Project Code ရယူခြင်း (Git Clone သို့မဟုတ် ဖိုင်များ ပြင်ဆင်ခြင်း)
+[CELL 2] - Project Code ရယူခြင်း (GitHub Repo Clone ပြုလုပ်ခြင်း)
 ================================================================================
-# Project ကို GitHub သို့မဟုတ် Directory ထဲသို့ ရယူခြင်း
-# (GitHub repo ရှိပါက git clone သုံးနိုင်ပြီး မရှိပါက အောက်ပါအတိုင်း project ဖိုင်များ ဆွဲယူနိုင်ပါသည်)
-
+# Project ကို GitHub Repository မှ ရယူခြင်း
 import os
-if not os.path.exists("recap-free-studio"):
-    # သင်၏ GitHub Repo URL ကို ဤနေရာတွင် ထည့်သွင်းနိုင်သည် (ဥပမာ: !git clone <repo_url> recap-free-studio)
-    # သို့မဟုတ် လက်ရှိ directory ကို သုံးမည်ဆိုပါက:
-    !mkdir -p recap-free-studio
-    %cd recap-free-studio
-else:
-    %cd recap-free-studio
 
-# အကယ်၍ ZIP ဖိုင်ဖြင့် Upload တင်ထားပါက:
-# !unzip -q /kaggle/input/recap-project/project.zip -d .
+print("Cloning RECAP FREE Studio from GitHub...")
+!rm -rf recap-free
+!git clone https://github.com/surviveman78-commits/recap-free.git recap-free
+%cd recap-free
+
+# Link VoxCPM directory into project
+if os.path.exists("/kaggle/working/VoxCPM") and not os.path.exists("VoxCPM"):
+    !ln -s /kaggle/working/VoxCPM VoxCPM
 
 print("Working directory:", os.getcwd())
+print("✅ Cell 2 Complete: Project is ready!")
 
 
 ================================================================================
