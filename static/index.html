@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RECAP FREE · မြန်မာ AI အသံနဲ့ Recap ဗီဒီယို ဖန်တီးသည့် Studio</title>
+  <meta name="description" content="Link တခုကနေ မြန်မာအသံနဲ့ Recap ဗီဒီယို ထုတ်မယ် - RECAP FREE Studio">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Ambient Mesh Glow -->
+  <div class="bv-ambient-bg" aria-hidden="true"></div>
+
+  <!-- Header matching BurmaVoice 3D Style -->
+  <header class="bv-header">
+    <div class="bv-header-inner">
+      <div class="bv-brand">
+        <!-- 3D Logo Badge -->
+        <div class="bv-logo-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" class="bv-logo-svg">
+            <path d="M12 2v20M17 5v14M7 5v14M2 9v6M22 9v6"/>
+          </svg>
+        </div>
+        <div class="bv-brand-title">
+          <span class="bv-title-main">RECAP FREE</span>
+          <span class="bv-pill-tag">Studio</span>
+        </div>
+      </div>
+
+      <div class="bv-header-actions">
+        <!-- Telegram Group Link -->
+        <a href="https://t.me/+P2fOKTtyaGgxNmE1" target="_blank" rel="noopener noreferrer" class="bv-telegram-pill" title="Telegram Group သို့ ဝင်မည်">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="bv-tg-icon">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+          <span>Telegram Group</span>
+        </a>
+
+        <!-- History Button -->
+        <button id="historyBtn" class="bv-3d-theme-btn" type="button" title="History ကြည့်မည်">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>History</span>
+          <span id="historyBadge" class="bv-history-badge" style="display:none;">0</span>
+        </button>
+
+        <!-- Light / Dark Mode 3D Toggle Button -->
+        <button id="themeToggleBtn" class="bv-3d-theme-btn" type="button" title="Light / Dark Mode ပြောင်းမည်">
+          <span id="themeIcon" class="bv-theme-icon">🌙</span>
+          <span id="themeLabel" class="bv-theme-label">Dark</span>
+        </button>
+
+        <!-- 3D Settings Trigger Button -->
+        <button id="openSettingsBtn" class="bv-3d-settings-btn" type="button" title="Settings ဖွင့်မည်">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="bv-settings-icon">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span>Settings</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Hero & Workspace -->
+  <main class="bv-main-container">
+    
+    <!-- Hero Headline matching BurmaVoice -->
+    <section class="bv-hero-section">
+      <div class="bv-hero-pill-badge">
+        <span class="bv-badge-dot"></span>
+        <span id="gpuStatusText">AI Video Recap & Voiceover Studio • GPU Accelerated</span>
+      </div>
+      <h1 class="bv-hero-headline">
+        Link တခုကနေ မြန်မာအသံနဲ့<br>
+        <span class="bv-gradient-text">Recap ဗီဒီယို ထုတ်မယ်</span>
+      </h1>
+      <p class="bv-hero-subtext">
+        AI အသံတွေ တူနေသရွေ့ channel ကို ဘယ်သူမှ မမှတ်မိဘူး • ကိုယ်ပိုင် ဇာတ်လမ်းပြော အသံနှင့် စာတန်းထိုး အလိုအလျောက် ဖန်တီးပါ
+      </p>
+
+      <!-- Platform Compatibility Badges -->
+      <div class="bv-platforms-row">
+        <span class="bv-platform-badge">
+          <svg class="bv-plat-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 0 0-2.122 2.136C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.55 9.376.55 9.376.55s7.505 0 9.377-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube
+        </span>
+        <span class="bv-platform-badge">
+          <svg class="bv-plat-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          TikTok
+        </span>
+        <span class="bv-platform-badge">
+          <svg class="bv-plat-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Facebook
+        </span>
+        <span class="bv-platform-badge">
+          <svg class="bv-plat-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Twitter / X
+        </span>
+      </div>
+    </section>
+
+    <!-- 3D Core Workspace Card -->
+    <section class="bv-3d-card bv-workspace-card">
+
+      <!-- INPUT VIEW -->
+      <div id="inputSection" class="bv-card-body">
+        
+        <!-- Active Job Banner (shows when another job is currently rendering) -->
+        <div id="activeJobNotice" class="bv-active-job-banner" style="display: none;">
+          <span class="bv-pulse-dot"></span>
+          <span id="activeJobNoticeText">ဗီဒီယို တစ်ပုဒ် လုပ်ဆောင်နေဆဲဖြစ်သည် - Queue ထဲသို့ ဆက်လက်ထည့်သွင်းနိုင်ပါသည်</span>
+          <button type="button" id="viewCurrentActiveBtn" class="bv-banner-link-btn">ကြည့်မည် ▶</button>
+        </div>
+
+        <!-- 3D Pill Mode Switcher -->
+        <div class="bv-3d-switcher-track">
+          <button id="toggleLinkBtn" class="bv-3d-switch-btn active" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-switch-icon"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>Video Link ထည့်မယ်</span>
+          </button>
+          <button id="toggleFileBtn" class="bv-3d-switch-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-switch-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>ဗီဒီယိုဖိုင် တင်မယ်</span>
+          </button>
+        </div>
+
+        <!-- Mode 1: Video Link Input -->
+        <div id="linkInputGroup" class="bv-input-group">
+          <label for="videoUrlInput" class="bv-input-label">
+            <span>Video Link</span>
+            <span class="bv-label-hint">YouTube, TikTok, Facebook, Twitter URL</span>
+          </label>
+          <div class="bv-3d-input-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-input-prefix-icon"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <input 
+              type="url" 
+              id="videoUrlInput" 
+              class="bv-field-input" 
+              placeholder="https://www.youtube.com/watch?v=... သို့မဟုတ် TikTok Link ထည့်ပါ"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <!-- Mode 2: Local Video File Dropzone -->
+        <div id="fileInputGroup" class="bv-input-group" style="display: none;">
+          <label class="bv-input-label">
+            <span>Local Video File</span>
+            <span class="bv-label-hint">MP4, MOV, MKV, WEBM (Max 500MB)</span>
+          </label>
+          <div class="bv-3d-dropzone" id="dropZone">
+            <input type="file" id="videoFileInput" accept="video/*" class="bv-file-hidden">
+            <div class="bv-dropzone-inner">
+              <div class="bv-upload-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <p id="uploadFileName" class="bv-upload-file-title">ဗီဒီယိုဖိုင် ရွေးချယ်ရန် နှိပ်ပါ သို့မဟုတ် ဖိုင်ဆွဲထည့်ပါ</p>
+              <span class="bv-upload-subtext">စက္ကန့်ပိုင်းအတွင်း အသံနှင့် စာတန်းထိုး အလိုအလျောက် ခွဲခြမ်းစိပ်ဖြာပေးပါမည်</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Language Row -->
+        <div class="bv-input-group">
+          <label for="dashboardTargetLang" class="bv-input-label">
+            <span>ဘာသာပြန်မည့် ဘာသာစကား (Target Language)</span>
+          </label>
+          <div class="bv-3d-select-wrapper">
+            <select id="dashboardTargetLang" class="bv-select-field">
+              <option value="my" selected>🇲🇲 Burmese (မြန်မာဘာသာ)</option>
+              <option value="en">🇺🇸 English</option>
+              <option value="th">🇹🇭 Thai (ထိုင်း)</option>
+              <option value="ja">🇯🇵 Japanese (ဂျပန်)</option>
+              <option value="ko">🇰🇷 Korean (ကိုရီးယား)</option>
+              <option value="zh">🇨🇳 Chinese (တရုတ်)</option>
+              <option value="es">🇪🇸 Spanish (စပိန်)</option>
+              <option value="fr">🇫🇷 French (ပြင်သစ်)</option>
+              <option value="de">🇩🇪 German (ဂျာမန်)</option>
+              <option value="it">🇮🇹 Italian (အီတလီ)</option>
+              <option value="ru">🇷🇺 Russian (ရုရှား)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Subtitle Enable/Disable Toggle -->
+        <div class="bv-subtitle-toggle-row">
+          <div class="bv-toggle-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;color:var(--primary)">
+              <rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 7V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2"/>
+              <line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>
+            </svg>
+            <span class="bv-toggle-label">စာတန်းထိုး (Subtitle Burn-in)</span>
+            <span id="subtitleToggleStatus" class="bv-toggle-status-pill on">ဖွင့်ထား</span>
+          </div>
+          <label class="bv-switch-toggle" for="subtitleEnabledToggle" title="စာတန်းထိုး Enable / Disable">
+            <input type="checkbox" id="subtitleEnabledToggle" checked>
+            <span class="bv-switch-slider"></span>
+          </label>
+        </div>
+
+        <!-- Burma Voice Signature 3D Bevel Button -->
+        <div class="bv-action-row">
+          <button id="startBtn" class="bv-solid-btn bv-solid-bevel" type="button">
+            <span>စတင်မယ်</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bv-btn-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- PROGRESS VIEW (compact) -->
+      <div id="progressSection" class="bv-card-body" style="display: none;">
+        <div class="bv-progress-head">
+          <div class="bv-progress-status-pill">
+            <span class="bv-spinner-dot"></span>
+            <span id="currentStageLabel">ဗီဒီယို ဒေါင်းလုဒ်လုပ်နေပါတယ်...</span>
+          </div>
+          <span id="totalPercentLabel" class="bv-percent-display">0%</span>
+        </div>
+
+        <div class="bv-progress-track-3d">
+          <div id="progressBar" class="bv-progress-fill-3d"></div>
+        </div>
+
+        <!-- Compact 8 Steps (collapsed to compact icons) -->
+        <div class="bv-step-flow-compact" id="stageList">
+          <div class="bv-step-chip" data-idx="1">
+            <span class="bv-chip-num">1</span>
+            <span class="bv-chip-label">ဒေါင်းလုဒ်</span>
+          </div>
+          <div class="bv-step-chip" data-idx="2">
+            <span class="bv-chip-num">2</span>
+            <span class="bv-chip-label">Audio</span>
+          </div>
+          <div class="bv-step-chip" data-idx="3">
+            <span class="bv-chip-num">3</span>
+            <span class="bv-chip-label">STT</span>
+          </div>
+          <div class="bv-step-chip" data-idx="4">
+            <span class="bv-chip-num">4</span>
+            <span class="bv-chip-label">AI ပြန်</span>
+          </div>
+          <div class="bv-step-chip" data-idx="5">
+            <span class="bv-chip-num">5</span>
+            <span class="bv-chip-label">TTS</span>
+          </div>
+          <div class="bv-step-chip" data-idx="6">
+            <span class="bv-chip-num">6</span>
+            <span class="bv-chip-label">Speed</span>
+          </div>
+          <div class="bv-step-chip" data-idx="7">
+            <span class="bv-chip-num">7</span>
+            <span class="bv-chip-label">Subtitle</span>
+          </div>
+          <div class="bv-step-chip" data-idx="8">
+            <span class="bv-chip-num">8</span>
+            <span class="bv-chip-label">✓</span>
+          </div>
+        </div>
+
+        <!-- Current step detail -->
+        <p id="stageDetailMsg" class="bv-stage-detail-msg">စတင်ပြင်ဆင်နေပါသည်...</p>
+
+        <!-- Queue Multitasking Action: Add another video while this one runs -->
+        <div class="bv-progress-actions">
+          <button id="addAnotherJobBtn" class="bv-secondary-3d-btn" type="button" style="width: 100%;">
+            + Queue ထဲသို့ နောက်ထပ် ဗီဒီယို ထည့်မည်
+          </button>
+        </div>
+      </div>
+
+      <!-- COMPLETED VIEW -->
+      <div id="completedSection" class="bv-card-body" style="display: none;">
+        <div class="bv-complete-badge">
+          <span class="bv-check-icon">✓</span>
+          <span>Recap ဗီဒီယို အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ!</span>
+        </div>
+
+        <div class="bv-video-bezel-3d">
+          <video id="finalVideo" controls playsinline></video>
+        </div>
+
+        <div class="bv-meta-row">
+          <span class="bv-meta-label">ဗီဒီယို အရှည်:</span>
+          <span id="finalDurationText" class="bv-meta-value">00:00</span>
+          <span class="bv-meta-sep">•</span>
+          <span id="currentJobIdLabel" class="bv-meta-value" style="font-size:0.75rem;opacity:0.5;"></span>
+        </div>
+
+        <div class="bv-complete-actions">
+          <div class="bv-complete-actions-row">
+            <button id="viewVideoBtn" class="bv-solid-btn bv-solid-bevel btn-play-3d" type="button">
+              ▶ Preview
+            </button>
+            <a id="downloadVideoBtn" class="bv-solid-btn bv-solid-bevel btn-download-3d" href="#" download="recap_video.mp4">
+              ⬇ Video Download
+            </a>
+            <a id="downloadSrtBtn" class="bv-solid-btn bv-solid-bevel btn-srt-3d" href="#" download="subtitles.srt">
+              📄 SRT Download
+            </a>
+          </div>
+          <button id="newJobBtn" class="bv-secondary-3d-btn" type="button">
+            + ဗီဒီယို အသစ်ထပ်လုပ်မယ်
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Queue Panel (shows active + queued jobs) -->
+    <section id="queuePanel" class="bv-queue-panel" style="display:none;">
+      <div class="bv-queue-header">
+        <div class="bv-queue-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+          <span>Queue</span>
+          <span id="queueCount" class="bv-history-badge">0</span>
+        </div>
+      </div>
+      <div id="queueList" class="bv-queue-list"></div>
+    </section>
+
+    <!-- 3 Feature Cards matching BurmaVoice -->
+    <section class="bv-features-grid">
+      <div class="bv-feature-card">
+        <div class="bv-feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="bv-feat-svg-yt"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 0 0-2.122 2.136C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.55 9.376.55 9.376.55s7.505 0 9.377-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </div>
+        <h3 class="bv-feat-title">YouTube & Long-form</h3>
+        <p class="bv-feat-desc">နားထောင်ရတာ မငြီးငွေ့တဲ့ continuous recap narration အသံနှင့် စာတန်းထိုး</p>
+      </div>
+
+      <div class="bv-feature-card">
+        <div class="bv-feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="bv-feat-svg-tt"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+        </div>
+        <h3 class="bv-feat-title">TikTok & Short-form</h3>
+        <p class="bv-feat-desc">ပထမစက္ကန့်မှာတင် hook ဖမ်းတဲ့ 9:16 vertical ဇာတ်လမ်းပြော voiceover</p>
+      </div>
+
+      <div class="bv-feature-card">
+        <div class="bv-feat-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-feat-svg-fb"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm1-13h-2v6h6v-2h-4z"/></svg>
+        </div>
+        <h3 class="bv-feat-title">Faceless Brand</h3>
+        <p class="bv-feat-desc">ဗီဒီယို speed ကို အသံနှင့် ၁:၁ ညှိပြီး ချောမွေ့စွာ ထုတ်လုပ်ပေးသော စနစ်</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Burma Voice 3D Settings Modal -->
+  <div id="settingsModal" class="bv-modal-overlay">
+    <div class="bv-modal-card-3d">
+      
+      <!-- Modal Header -->
+      <div class="bv-modal-header">
+        <div class="bv-modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-modal-icon"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span>Studio Settings</span>
+        </div>
+        <button id="closeSettingsBtn" class="bv-modal-close-btn" type="button" title="Close">✕</button>
+      </div>
+
+      <!-- 3D Pill Tabs -->
+      <div class="bv-modal-tabs">
+        <button type="button" class="bv-tab-btn active" data-tab="tab-general">အထွေထွေ</button>
+        <button type="button" class="bv-tab-btn" data-tab="tab-voice">အသံ (Voice)</button>
+        <button type="button" class="bv-tab-btn" data-tab="tab-subtitles">စာတန်းထိုး & Font</button>
+        <button type="button" class="bv-tab-btn" data-tab="tab-api">API Keys</button>
+      </div>
+
+      <form id="settingsForm">
+        
+        <!-- TAB 1: အထွေထွေ (General) -->
+        <div id="tab-general" class="bv-tab-content active">
+          <div class="bv-setting-field">
+            <label for="settingsTargetLang" class="bv-input-label">ဘာသာပြန်လိုသော ဘာသာစကား (Target Language)</label>
+            <div class="bv-3d-select-wrapper">
+              <select id="settingsTargetLang" class="bv-select-field">
+                <option value="my">🇲🇲 Burmese (မြန်မာဘာသာ)</option>
+                <option value="en">🇺🇸 English</option>
+                <option value="th">🇹🇭 Thai (ထိုင်း)</option>
+                <option value="ja">🇯🇵 Japanese (ဂျပန်)</option>
+                <option value="ko">🇰🇷 Korean (ကိုရီးယား)</option>
+                <option value="zh">🇨🇳 Chinese (တရုတ်)</option>
+                <option value="es">🇪🇸 Spanish (စပိန်)</option>
+                <option value="fr">🇫🇷 French (ပြင်သစ်)</option>
+                <option value="de">🇩🇪 German (ဂျာမန်)</option>
+                <option value="it">🇮🇹 Italian (အီတလီ)</option>
+                <option value="ru">🇷🇺 Russian (ရုရှား)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: အသံ (Voice Settings) -->
+        <div id="tab-voice" class="bv-tab-content">
+          <div class="bv-setting-field">
+            <label for="voiceEngine" class="bv-input-label">အသံ Engine (Voice Engine)</label>
+            <div class="bv-3d-select-wrapper">
+              <select id="voiceEngine" class="bv-select-field">
+                <option value="edge_tts">Microsoft Edge TTS (Neural High Speed)</option>
+                <option value="voxcpm2">VoxCPM2 Voice Clone (RTX GPU Local)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Edge TTS Settings Block -->
+          <div id="edgeTtsSettingsBlock">
+            <div class="bv-setting-field">
+              <label for="edgeLanguageSelect" class="bv-input-label">TTS Language</label>
+              <div class="bv-3d-select-wrapper">
+                <select id="edgeLanguageSelect" class="bv-select-field"></select>
+              </div>
+            </div>
+
+            <div class="bv-setting-field">
+              <label for="edgeVoiceSelect" class="bv-input-label">TTS Voice</label>
+              <div class="bv-3d-select-wrapper">
+                <select id="edgeVoiceSelect" class="bv-select-field"></select>
+              </div>
+            </div>
+            <p class="bv-note-text">⚡ Pitch: +20Hz, Speed: +20% (သဘာဝကျသော recap အသံနှုန်းထားဖြင့် ပုံသေချိန်ထားပါသည်)</p>
+          </div>
+
+          <!-- VoxCPM2 Settings Block -->
+          <div id="voxcpmSettingsBlock" style="display: none;">
+            <div class="bv-setting-field">
+              <label class="bv-input-label">Voice Reference Audio (WAV, MP3, FLAC)</label>
+              <div class="bv-ref-upload-row">
+                <input type="file" id="voxcpmAudioFile" accept=".wav,.mp3,.m4a,.flac,.ogg" style="display: none;">
+                <button type="button" id="uploadRefAudioBtn" class="bv-secondary-3d-btn">
+                  📁 Upload Audio
+                </button>
+                <span id="currentRefAudioName" class="bv-ref-name">reference_speaker.wav</span>
+              </div>
+            </div>
+
+            <div class="bv-setting-field">
+              <label for="voxcpmRefText" class="bv-input-label">နမူနာအသံ၏ စာသား (Reference Text)</label>
+              <textarea 
+                id="voxcpmRefText" 
+                class="bv-textarea-field" 
+                rows="2" 
+                placeholder="အသံဖိုင်ထဲတွင် ပါဝင်သော စကားလုံးစာသားများကို ထည့်သွင်းပါ..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: စာတန်းထိုး & Font (Subtitle & Interactive Position) -->
+        <div id="tab-subtitles" class="bv-tab-content">
+          
+          <div class="bv-setting-field">
+            <div class="bv-field-header">
+              <label for="fontStyleSelect" class="bv-input-label">စာလုံးပုံစံ (Font Style)</label>
+              <button type="button" id="uploadCustomFontBtn" class="bv-mini-btn">
+                + Font အသစ်တင်မယ် (.ttf/.otf)
+              </button>
+              <input type="file" id="customFontFileInput" accept=".ttf,.otf" style="display: none;">
+            </div>
+            <div class="bv-3d-select-wrapper">
+              <select id="fontStyleSelect" class="bv-select-field"></select>
+            </div>
+          </div>
+
+          <!-- Font Size & Color -->
+          <div class="bv-settings-row">
+            <div class="bv-setting-field bv-half">
+              <label class="bv-input-label">Size: <span id="fontSizeDisplay">36px</span></label>
+              <input type="range" id="fontSizeRange" class="bv-slider" min="18" max="72" value="36" step="2">
+            </div>
+
+            <div class="bv-setting-field bv-half">
+              <label class="bv-input-label">Color: <span id="fontColorHex">#FFFFFF</span></label>
+              <div class="bv-color-row">
+                <input type="color" id="fontColorPicker" class="bv-color-picker" value="#FFFFFF">
+                <span class="bv-color-preview-tag">Color</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Drag & Drop Subtitle Positioning Canvas -->
+          <div class="bv-setting-field">
+            <div class="bv-field-header">
+              <label class="bv-input-label">စာတန်းထိုး နေရာ (Mouse ဖြင့် ဖိဆွဲ၍ ရွှေ့ပါ)</label>
+              <div class="bv-ratio-switch">
+                <button type="button" class="bv-ratio-btn active" id="ratio916Btn">9:16 (Shorts/TikTok)</button>
+                <button type="button" class="bv-ratio-btn" id="ratio169Btn">16:9 (Landscape)</button>
+              </div>
+            </div>
+
+            <!-- Screen Simulation -->
+            <div id="dragCanvasContainer" class="bv-drag-canvas-frame ratio-9-16">
+              <div id="draggableSubtitle" class="bv-draggable-badge">
+                <span id="previewSubText">ဤနေရာတွင် စာတန်းထိုး ပေါ်မည်</span>
+                <span class="bv-drag-grip">⠿</span>
+              </div>
+            </div>
+
+            <div class="bv-coord-row">
+              <span>Position: <strong>X: <span id="posXLabel">50%</span>, Y: <span id="posYLabel">82%</span></strong></span>
+              <button type="button" id="resetPosBtn" class="bv-link-action-btn">Default နေရာသို့ ပြန်ထားမည်</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TAB 4: API Keys -->
+        <div id="tab-api" class="bv-tab-content">
+          <div class="bv-setting-field">
+            <label for="groqApiKey" class="bv-input-label">Groq API Key (Speech-to-Text)</label>
+            <input type="password" id="groqApiKey" class="bv-field-input bv-field-input-standalone" placeholder="••••••••••••" autocomplete="off">
+            <p class="bv-note-text">အသံမှ စာသားပြောင်းလဲရန် Whisper API အတွက်သာ အသုံးပြုပါသည်။</p>
+          </div>
+
+          <div class="bv-setting-field">
+            <label for="geminiApiKey" class="bv-input-label">Gemini API Key (Translation & Storytelling)</label>
+            <input type="password" id="geminiApiKey" class="bv-field-input bv-field-input-standalone" placeholder="••••••••••••" autocomplete="off">
+            <p class="bv-note-text">ဇာတ်လမ်းပြော စာသားဘာသာပြန်ဆိုရန်အတွက် အသုံးပြုပါသည်။</p>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="bv-modal-footer">
+          <button type="button" id="cancelSettingsBtn" class="bv-secondary-3d-btn">မလုပ်တော့ပါ</button>
+          <button type="submit" class="bv-solid-btn bv-solid-bevel btn-save-3d">Settings သိမ်းဆည်းမည်</button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="historyModal" class="bv-modal-overlay">
+    <div class="bv-modal-card-3d">
+      <div class="bv-modal-header">
+        <div class="bv-modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-modal-icon">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>Job History</span>
+        </div>
+        <button id="closeHistoryBtn" class="bv-modal-close-btn" type="button" title="Close">✕</button>
+      </div>
+      <div id="historyList" class="bv-history-list">
+        <p class="bv-empty-state">History မရှိသေးပါ</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="bv-toast-shelf"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

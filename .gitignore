@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environment & secrets
+.env
+.env.*
+*.env
+config/settings.json
+data/
+temp/
+logs/
+*.log
+
+# Media outputs & temp files
+*.wav
+*.mp4
+*.m4a
+*.mp3
+*.flac
+*.ogg
+*.ass
+*.srt
+*.bin
+
+# Binaries & virtual environments
+cloudflared
+cloudflared.exe
+venv/
+.venv/
+env/
+.env/
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System files
+Thumbs.db
+Desktop.ini
+.DS_Store
+

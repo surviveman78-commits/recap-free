@@ -1,0 +1,10 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+groq>=0.5.0
+google-genai>=0.1.0
+edge-tts>=6.1.10
+soundfile>=0.12.1
+yt-dlp>=2024.3.10
+requests>=2.31.0

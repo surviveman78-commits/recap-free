@@ -1,0 +1,9 @@
+{
+  "groq_api_key": "",
+  "gemini_api_key": "",
+  "voice_engine": "edge_tts",
+  "edge_tts_voice": "en-US-ChristopherNeural",
+  "voxcpm_voice": "reference_speaker",
+  "gemini_mode": "rewrite",
+  "target_language": "en"
+}
