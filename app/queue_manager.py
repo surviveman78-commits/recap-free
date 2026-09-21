@@ -21,7 +21,7 @@ class JobQueueManager:
         self.event_queues: Dict[str, List[asyncio.Queue]] = {}
         self.job_queue: queue.Queue = queue.Queue()
         self.active_job_id: Optional[str] = None
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
         # Load existing jobs from disk into cache
         self._load_existing_jobs()
@@ -75,23 +75,32 @@ class JobQueueManager:
                 self.jobs[job_id]["stage"] = event.get("stage")
                 self.jobs[job_id]["progress"] = event.get("progress", 0.0)
 
-            queues = self.event_queues.get(job_id, [])
-            for q in list(queues):
-                try:
+            queues = list(self.event_queues.get(job_id, []))
+
+        for q in queues:
+            try:
+                loop = getattr(q, "_loop", None)
+                if loop and loop.is_running():
+                    loop.call_soon_threadsafe(q.put_nowait, event)
+                else:
                     q.put_nowait(event)
-                except Exception:
-                    pass
+            except Exception:
+                pass
+
+    def _get_queue_position_unlocked(self, job_id: str) -> int:
+        """Returns 1-based position in queue, or 0 if active/not queued (caller must hold lock or accept snapshot)."""
+        if self.active_job_id == job_id:
+            return 0
+        items = list(self.job_queue.queue)
+        for idx, item in enumerate(items):
+            if item["job_id"] == job_id:
+                return idx + 1
+        return 0
 
     def get_queue_position(self, job_id: str) -> int:
         """Returns 1-based position in queue, or 0 if active/not queued."""
         with self.lock:
-            if self.active_job_id == job_id:
-                return 0
-            items = list(self.job_queue.queue)
-            for idx, item in enumerate(items):
-                if item["job_id"] == job_id:
-                    return idx + 1
-            return 0
+            return self._get_queue_position_unlocked(job_id)
 
     def submit_job(
         self,
@@ -224,17 +233,38 @@ class JobQueueManager:
                 self.jobs[job_id]["video_url"] = f"/api/jobs/{job_id}/files/final_video.mp4"
                 self.jobs[job_id]["srt_url"] = f"/api/jobs/{job_id}/files/subtitles.srt"
 
+            self.broadcast_event(job_id, {
+                "job_id": job_id,
+                "status": "completed",
+                "stage": STAGES[7],
+                "stage_index": len(STAGES),
+                "message": "ဗီဒီယို ဖန်တီးခြင်း အောင်မြင်စွာ ပြီးဆုံးပါပြီ!",
+                "progress": 100.0,
+                "data": res
+            })
+
         except Exception as e:
             with self.lock:
                 self.jobs[job_id]["status"] = "failed"
+                self.jobs[job_id]["stage"] = "မအောင်မြင်ပါ"
                 self.jobs[job_id]["error"] = str(e)
+
+            self.broadcast_event(job_id, {
+                "job_id": job_id,
+                "status": "failed",
+                "stage": "မအောင်မြင်ပါ",
+                "stage_index": 0,
+                "message": f"Error: {str(e)}",
+                "progress": 0.0,
+                "data": {"error": str(e)}
+            })
 
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         with self.lock:
             job = self.jobs.get(job_id)
             if job:
                 # Add queue position if applicable
-                q_pos = self.get_queue_position(job_id)
+                q_pos = self._get_queue_position_unlocked(job_id)
                 res = job.copy()
                 res["queue_position"] = q_pos
                 return res

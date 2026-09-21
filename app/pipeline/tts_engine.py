@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import asyncio
 import subprocess
 import soundfile as sf
@@ -169,7 +170,7 @@ class TTSEngine:
         return str(converted_wav)
 
     def _generate_edge_segment(self, text: str, voice: str, output_path: Path):
-        """Edge TTS MUST ALWAYS use fixed pitch = +20Hz and rate = +20%."""
+        """Edge TTS MUST ALWAYS use fixed pitch = +20Hz and rate = +20% with retry resilience."""
         async def _run():
             communicate = edge_tts.Communicate(
                 text=text,
@@ -178,7 +179,19 @@ class TTSEngine:
                 rate="+20%"
             )
             await communicate.save(str(output_path))
-        asyncio.run(_run())
+
+        last_err = None
+        for attempt in range(3):
+            try:
+                asyncio.run(_run())
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    return
+            except Exception as e:
+                last_err = e
+                time.sleep(1.0 * (attempt + 1))
+
+        if last_err:
+            raise last_err
 
     def _generate_voxcpm_segment(
         self,

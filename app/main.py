@@ -398,6 +398,8 @@ async def stream_job_events(job_id: str):
             latest = job.get("latest_event")
             if latest:
                 yield f"data: {json.dumps(latest)}\n\n"
+                if latest.get("stage") in (STAGES[7], "မအောင်မြင်ပါ") or latest.get("status") in ("completed", "failed"):
+                    return
             else:
                 q_pos = job_queue_manager.get_queue_position(job_id)
                 init_event = {
@@ -411,6 +413,8 @@ async def stream_job_events(job_id: str):
                     "status": job.get("status", "queued")
                 }
                 yield f"data: {json.dumps(init_event)}\n\n"
+                if job.get("status") in ("completed", "failed"):
+                    return
 
             while True:
                 try:

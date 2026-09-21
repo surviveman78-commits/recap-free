@@ -41,15 +41,16 @@ class VideoDownloader:
         out_template = str(self.output_dir / "downloaded_video.%(ext)s")
         ydl_opts = {
             'format': 'bestvideo*+bestaudio/best',
+            'format_sort': ['res:2160', 'res', 'fps', 'quality', 'size', 'br'],
             'outtmpl': out_template,
             'merge_output_format': 'mp4',
             'progress_hooks': [self._hook],
             'noplaylist': True,
-            'socket_timeout': 15,
-            'retries': 5,
-            'fragment_retries': 5,
+            'socket_timeout': 30,
+            'retries': 10,
+            'fragment_retries': 10,
             'http_chunk_size': 10485760,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            'extractor_args': {'youtube': {'player_client': ['web', 'tv_embedded', 'android']}},
             'quiet': True,
             'no_warnings': True
         }

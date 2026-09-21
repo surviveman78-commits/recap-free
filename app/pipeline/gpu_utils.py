@@ -72,17 +72,18 @@ def check_gpu_nvenc_available() -> bool:
         return False
 
 
-def get_video_encoder_args(cq: int = 20, crf: int = 18) -> List[str]:
+def get_video_encoder_args(cq: int = 18, crf: int = 17) -> List[str]:
     """
-    Returns optimal FFmpeg video encoder arguments.
-    If GPU (NVIDIA NVENC) is available, uses h264_nvenc for ultra-fast rendering.
-    Otherwise, gracefully falls back to CPU libx264.
+    Returns optimal FFmpeg video encoder arguments for high quality 4K output.
+    If GPU (NVIDIA NVENC) is available, uses h264_nvenc with CQ=18 for ultra-fast rendering.
+    Otherwise, gracefully falls back to CPU libx264 with CRF=17.
     """
     if check_gpu_nvenc_available():
         return [
             "-c:v", "h264_nvenc",
             "-preset", "p4",
             "-cq", str(cq),
+            "-b:v", "0",
             "-pix_fmt", "yuv420p"
         ]
     else:

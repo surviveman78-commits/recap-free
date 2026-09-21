@@ -70,14 +70,17 @@ class AudioMixer:
             )
 
         encoder_name = get_active_encoder_name()
-        encoder_args = get_video_encoder_args(cq=20, crf=18)
+        encoder_args = get_video_encoder_args(cq=18, crf=17)
+
+        # 4K UHD filter: scales landscape to 3840w (or portrait to 3840h) using sharp lanczos filter
+        scale_4k_filter = "scale=w='if(gte(iw,ih),max(iw,3840),-2)':h='if(gte(iw,ih),-2,max(ih,3840))':flags=lanczos"
 
         # Build FFmpeg command with GPU or CPU encoder
         cmd = [
             "ffmpeg", "-y",
             "-i", str(video_path),
             "-i", str(tts_audio_path),
-            "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,fps=30[v]",
+            "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,{scale_4k_filter},fps=30[v]",
             "-map", "[v]",
             "-map", "1:a:0",
             "-t", f"{tts_dur:.3f}",
@@ -90,7 +93,7 @@ class AudioMixer:
         ]
 
         if self.progress_callback:
-            self.progress_callback(f"ဗီဒီယိုနှင့် အသံဖိုင် ပေါင်းစပ် rendering ပြုလုပ်နေပါသည် ({encoder_name})...", 65.0)
+            self.progress_callback(f"4K ဗီဒီယိုနှင့် အသံဖိုင် ပေါင်းစပ် rendering ပြုလုပ်နေပါသည် ({encoder_name})...", 65.0)
 
         result = subprocess.run(
             cmd,
@@ -107,13 +110,13 @@ class AudioMixer:
                     "ffmpeg", "-y",
                     "-i", str(video_path),
                     "-i", str(tts_audio_path),
-                    "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,fps=30[v]",
+                    "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,{scale_4k_filter},fps=30[v]",
                     "-map", "[v]",
                     "-map", "1:a:0",
                     "-t", f"{tts_dur:.3f}",
                     "-c:v", "libx264",
                     "-preset", "fast",
-                    "-crf", "18",
+                    "-crf", "17",
                     "-pix_fmt", "yuv420p",
                     "-c:a", "aac",
                     "-b:a", "192k",

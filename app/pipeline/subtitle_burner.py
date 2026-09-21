@@ -170,7 +170,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         )
 
         encoder_name = get_active_encoder_name()
-        encoder_args = get_video_encoder_args(cq=20, crf=18)
+        encoder_args = get_video_encoder_args(cq=18, crf=17)
 
         if self.progress_callback:
             self.progress_callback(f"စာတန်းထိုးနေပါတယ်... (FFmpeg {encoder_name} rendering)", 50.0)
@@ -214,7 +214,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     "-c:a", "copy",
                     "-c:v", "libx264",
                     "-preset", "fast",
-                    "-crf", "18",
+                    "-crf", "17",
                     "-pix_fmt", "yuv420p",
                     str(output_path.name)
                 ]
