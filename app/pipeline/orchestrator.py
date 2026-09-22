@@ -81,6 +81,7 @@ class PipelineOrchestrator:
         edge_tts_voice: str = "my-MM-NilarNeural",
         voxcpm_voice_path: Optional[str] = None,
         voxcpm_ref_text: Optional[str] = None,
+        voxcpm_device: Optional[str] = None,
         gemini_mode: str = "translate",
         target_language: str = "my",
         font_color: str = "#FFFFFF",
@@ -189,7 +190,8 @@ class PipelineOrchestrator:
                 engine=voice_engine,
                 voice=edge_tts_voice,
                 voxcpm_ref_path=voxcpm_voice_path,
-                voxcpm_ref_text=voxcpm_ref_text
+                voxcpm_ref_text=voxcpm_ref_text,
+                voxcpm_device=voxcpm_device
             )
             self.artifacts["tts_audio"] = tts_audio.name
 

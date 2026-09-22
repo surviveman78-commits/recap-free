@@ -3,6 +3,8 @@ import sys
 import time
 import asyncio
 import subprocess
+import json
+import multiprocessing as mp
 import soundfile as sf
 import numpy as np
 from pathlib import Path
@@ -31,24 +33,26 @@ for _cand in CANDIDATE_VOXCPM_DIRS:
 
 
 class VoxCPMManager:
-    _instance = None
-    _model = None
+    _models = {}
 
     @classmethod
-    def get_model(cls):
-        if cls._model is None:
+    def get_model(cls, device: Optional[str] = None):
+        device = device or os.getenv("VOXCPM_DEVICE", "auto")
+        if device not in cls._models:
             try:
                 import voxcpm
-                print("Loading VoxCPM2 model...")
-                cls._model = voxcpm.VoxCPM.from_pretrained(
-                    "openbmb/VoxCPM2",
-                    load_denoiser=False
+                print(f"Loading VoxCPM2 model on {device}...")
+                model_id = os.getenv("VOXCPM_MODEL_ID", "openbmb/VoxCPM2")
+                cls._models[device] = voxcpm.VoxCPM.from_pretrained(
+                    model_id,
+                    load_denoiser=False,
+                    device=device,
                 )
-                print("VoxCPM2 loaded successfully.")
+                print(f"VoxCPM2 loaded successfully on {device}.")
             except Exception as e:
                 print(f"Error loading VoxCPM2: {e}")
                 raise RuntimeError(f"VoxCPM2 engine failed to initialize: {e}")
-        return cls._model
+        return cls._models[device]
 
 
 class TTSEngine:
@@ -153,10 +157,7 @@ class TTSEngine:
             return None
 
         p = Path(audio_path)
-        if p.suffix.lower() == ".wav":
-            return str(p)
-
-        converted_wav = p.parent / f"{p.stem}_converted.wav"
+        converted_wav = p.parent / f"{p.stem}_voxcpm.wav"
         if not converted_wav.exists():
             cmd = [
                 "ffmpeg", "-y",
@@ -198,16 +199,15 @@ class TTSEngine:
         text: str,
         voice_path: Optional[str],
         reference_text: Optional[str],
-        output_path: Path
+        output_path: Path,
+        device: Optional[str] = None
     ):
         """VoxCPM2 speech generation with prompt text. Edge TTS pitch/speed MUST NOT apply."""
-        model = VoxCPMManager.get_model()
+        model = VoxCPMManager.get_model(device=device)
         generate_kwargs = {
             "text": text,
             "cfg_value": 2.0,
             "inference_timesteps": 10,
-            "normalize": True,
-            "denoise": False
         }
         clean_ref = self._prepare_reference_audio(voice_path) if voice_path else None
         if clean_ref:
@@ -253,7 +253,39 @@ class TTSEngine:
         engine: str = "edge_tts",
         voice: str = "my-MM-NilarNeural",
         voxcpm_ref_path: Optional[str] = None,
-        voxcpm_ref_text: Optional[str] = None
+        voxcpm_ref_text: Optional[str] = None,
+        voxcpm_device: Optional[str] = None
+    ) -> Tuple[Path, List[Dict[str, Any]]]:
+        """Run VoxCPM in a separate process; Edge TTS stays lightweight in-process."""
+        if engine != "voxcpm2" or os.getenv("RECAP_VOXCPM_CHILD") == "1":
+            return self._generate_impl(segments, output_dir, engine, voice, voxcpm_ref_path, voxcpm_ref_text, voxcpm_device)
+
+        output_dir = Path(output_dir)
+        result_path = output_dir / "voxcpm_worker_result.json"
+        if result_path.exists():
+            result_path.unlink()
+        ctx = mp.get_context("spawn")
+        proc = ctx.Process(
+            target=_voxcpm_job_worker,
+            args=(segments, str(output_dir), voice, voxcpm_ref_path, voxcpm_ref_text, voxcpm_device, str(result_path)),
+        )
+        proc.start()
+        proc.join()
+        if proc.exitcode != 0 or not result_path.exists():
+            raise RuntimeError(f"VoxCPM worker failed (exit code {proc.exitcode}). Check job logs.")
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        result_path.unlink(missing_ok=True)
+        return Path(result["audio_path"]), result["segments"]
+
+    def _generate_impl(
+        self,
+        segments: List[Dict[str, Any]],
+        output_dir: Path,
+        engine: str = "edge_tts",
+        voice: str = "my-MM-NilarNeural",
+        voxcpm_ref_path: Optional[str] = None,
+        voxcpm_ref_text: Optional[str] = None,
+        voxcpm_device: Optional[str] = None
     ) -> Tuple[Path, List[Dict[str, Any]]]:
         """
         Generates a continuous, seamless recap narration without unnatural pauses.
@@ -294,7 +326,7 @@ class TTSEngine:
                 self.progress_callback(f"အသံဖိုင် ဖန်တီးနေပါတယ်... ({idx + 1}/{total_segments})", pct)
 
             if engine == "voxcpm2":
-                self._generate_voxcpm_segment(text, ref_path, voxcpm_ref_text, seg_file)
+                self._generate_voxcpm_segment(text, ref_path, voxcpm_ref_text, seg_file, voxcpm_device)
             else:
                 self._generate_edge_segment(text, voice, seg_file)
 
@@ -369,3 +401,27 @@ class TTSEngine:
         sf.write(str(final_tts_path), audio_int16, target_sr, subtype="PCM_16")
 
         return final_tts_path, synced_segments
+
+
+
+def _voxcpm_job_worker(segments, output_dir, voice, ref_path, ref_text, device, result_path):
+    """Spawn-safe worker: one Python process owns one CUDA device/model."""
+    os.environ["RECAP_VOXCPM_CHILD"] = "1"
+    try:
+        engine = TTSEngine()
+        audio_path, synced = engine._generate_impl(
+            segments=segments,
+            output_dir=Path(output_dir),
+            engine="voxcpm2",
+            voice=voice,
+            voxcpm_ref_path=ref_path,
+            voxcpm_ref_text=ref_text,
+            voxcpm_device=device,
+        )
+        Path(result_path).write_text(
+            json.dumps({"audio_path": str(audio_path), "segments": synced}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        print(f"[VoxCPM worker] {exc}", flush=True)
+        raise

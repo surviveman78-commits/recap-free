@@ -1,6 +1,7 @@
 import os
 import subprocess
 import json
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable
 
@@ -40,6 +41,30 @@ def format_srt_timestamp(seconds: float) -> str:
     return f"{hrs:02d}:{mins:02d}:{secs:02d},{millis:03d}"
 
 
+def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> str:
+    """Wrap only the rendered subtitle; the original segment text stays unchanged for TTS."""
+    text = unicodedata.normalize("NFC", " ".join(str(text).split()))
+    if len(text) <= max_chars:
+        return text
+    words = text.split(" ")
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > max_chars and len(lines) < max_lines - 1:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    if len(lines) <= max_lines:
+        return "\n".join(lines)
+    # Burmese often has no spaces; split long residue by characters as a last resort.
+    compact = "".join(lines)
+    return "\n".join(compact[i:i + max_chars] for i in range(0, len(compact), max_chars))
+
+
 class SubtitleBurner:
     def __init__(self, progress_callback: Optional[Callable[[str, float], None]] = None):
         self.progress_callback = progress_callback
@@ -69,7 +94,7 @@ class SubtitleBurner:
         video_height: int,
         font_color: str = "#FFFFFF",
         font_size_px: int = 36,
-        font_style: str = "Myanmar Text",
+        font_style: str = "Noto Sans Myanmar",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0
     ) -> (Path, Path):
@@ -88,7 +113,9 @@ class SubtitleBurner:
         outline_size = max(2, int(scaled_font_size * 0.12))
 
         ass_color = hex_to_ass_color(font_color)
-        safe_font = font_style or "Myanmar Text"
+        safe_font = font_style or "Noto Sans Myanmar"
+        if safe_font.strip().lower() in {"myanmar text", "myanmartext"}:
+            safe_font = "Noto Sans Myanmar"
 
         # ASS header
         ass_header = f"""[Script Info]
@@ -116,14 +143,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
-            clean_text = text.replace("\n", "\\N")
+            subtitle_text = wrap_subtitle_text(text)
+            clean_text = subtitle_text.replace("\n", "\\N")
             
             # Use \\an5\\pos(X, Y) tag for exact drag positioning matching CSS translate(-50%, -50%)!
             ass_lines.append(f"Dialogue: 0,{ass_start},{ass_end},Default,,0,0,0,,{{\\an5\\pos({target_x},{target_y})}}{clean_text}\n")
 
             srt_start = format_srt_timestamp(start)
             srt_end = format_srt_timestamp(end)
-            srt_lines.append(f"{idx + 1}\n{srt_start} --> {srt_end}\n{text}\n\n")
+            srt_lines.append(f"{idx + 1}\n{srt_start} --> {srt_end}\n{subtitle_text}\n\n")
 
         with open(ass_path, "w", encoding="utf-8") as f:
             f.writelines(ass_lines)
@@ -140,7 +168,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         output_path: Optional[Path] = None,
         font_color: str = "#FFFFFF",
         font_size_px: int = 36,
-        font_style: str = "Myanmar Text",
+        font_style: str = "Noto Sans Myanmar",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0
     ) -> Path:
@@ -177,12 +205,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         sub_rel = ass_path.name
         
-        # Check custom fonts directory
+        # Resolve the selected font explicitly; this avoids missing-font fallback on Kaggle.
         fonts_dir_arg = ""
+        safe_font = font_style or "Noto Sans Myanmar"
+        if safe_font.strip().lower() in {"myanmar text", "myanmartext"}:
+            safe_font = "Noto Sans Myanmar"
+        try:
+            match_font = "Noto Sans Myanmar:style=Regular" if "myanmar" in safe_font.lower() else safe_font
+            font_file = subprocess.check_output(
+                ["fc-match", "-f", "%{file}", match_font],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            if font_file and Path(font_file).exists():
+                fonts_dir_arg = f":fontsdir='{Path(font_file).parent.as_posix()}'"
+        except Exception:
+            pass
+
+        # Check custom fonts directory
         if CUSTOM_FONTS_DIR.exists() and any(CUSTOM_FONTS_DIR.iterdir()):
             # Escape for FFmpeg filter on Windows
             clean_fonts_dir = str(CUSTOM_FONTS_DIR).replace('\\', '/').replace(':', '\\:')
-            fonts_dir_arg = f":fontsdir='{clean_fonts_dir}'"
+            fonts_dir_arg = fonts_dir_arg or f":fontsdir='{clean_fonts_dir}'"
 
         sub_filter = f"subtitles='{sub_rel}'{fonts_dir_arg}"
 

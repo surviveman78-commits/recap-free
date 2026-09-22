@@ -87,7 +87,7 @@ class AudioMixer:
             *encoder_args,
             "-c:a", "aac",
             "-b:a", "192k",
-            "-fps_mode", "cfr",
+            "-vsync", "cfr",
             "-movflags", "+faststart",
             str(output_path)
         ]
@@ -120,7 +120,7 @@ class AudioMixer:
                     "-pix_fmt", "yuv420p",
                     "-c:a", "aac",
                     "-b:a", "192k",
-                    "-fps_mode", "cfr",
+                    "-vsync", "cfr",
                     "-movflags", "+faststart",
                     str(output_path)
                 ]

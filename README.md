@@ -73,3 +73,19 @@ The application will start at `http://127.0.0.1:8000` and automatically open you
 2. Select your Gemini Processing Mode (Rewrite, Burmese translation, English translation, or Dynamic dub).
 3. Click **Start Pipeline**.
 4. Watch the 8-stage progress, view the side-by-side transcripts, and preview/download your final dubbed video.
+
+---
+
+## Kaggle Notebook (recommended)
+
+The repository now includes [`RECAP_FREE_Kaggle.ipynb`](RECAP_FREE_Kaggle.ipynb), which is the supported Kaggle workflow. In Kaggle, enable **Internet**, optionally enable a GPU, and add `GROQ_API_KEY` and `GEMINI_API_KEY` through **Add-ons → Secrets**. Run the notebook cells in order. It installs FFmpeg and the lean dependencies, clones the project, starts FastAPI without opening a local browser, runs a Cloudflare quick tunnel, and prints a public URL without blocking the notebook cell.
+
+The default **Edge TTS** engine is recommended for Kaggle because it avoids downloading a large local voice model. The optional VoxCPM2 cell is provided for GPU voice cloning and should only be run when that engine is selected in Settings. Kaggle output is ephemeral, so download finished videos before the session ends.
+
+For a terminal-style launch from `/kaggle/working/recap-free`, use:
+
+```bash
+python kaggle_run.py
+```
+
+The launcher respects `RECAP_HOST`, `RECAP_PORT`, `RECAP_CONFIG_DIR`, `RECAP_DATA_DIR`, `GROQ_API_KEY`, and `GEMINI_API_KEY`. It returns immediately after starting the server and tunnel; there is no infinite keep-alive loop in the notebook.

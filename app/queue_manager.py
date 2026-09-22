@@ -1,82 +1,79 @@
-import os
+import asyncio
 import json
+import queue
+import threading
 import time
 import uuid
-import queue
-import asyncio
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional
 
-from app.config import settings_manager, DATA_DIR
+from app.config import DATA_DIR, settings_manager
 from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 
 JOBS_DIR = DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
+EDGE_MAX_CONCURRENT = 5
+VOXCPM_MAX_CONCURRENT = 2
+
 
 class JobQueueManager:
+    """Engine-aware scheduler with isolated job folders and bounded concurrency."""
+
     def __init__(self):
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.event_queues: Dict[str, List[asyncio.Queue]] = {}
-        self.job_queue: queue.Queue = queue.Queue()
+        self.pending_jobs: List[Dict[str, Any]] = []
+        self.active_jobs: Dict[str, Dict[str, Any]] = {}
         self.active_job_id: Optional[str] = None
+        self.active_counts = {"edge_tts": 0, "voxcpm2": 0}
         self.lock = threading.RLock()
-
-        # Load existing jobs from disk into cache
+        self.condition = threading.Condition(self.lock)
+        self.executor = ThreadPoolExecutor(max_workers=EDGE_MAX_CONCURRENT + VOXCPM_MAX_CONCURRENT)
         self._load_existing_jobs()
+        self.scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
+        self.scheduler_thread.start()
 
-        # Start background worker thread
-        self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
-        self.worker_thread.start()
+    @staticmethod
+    def _engine(value: Optional[str]) -> str:
+        return "voxcpm2" if str(value or "").lower() == "voxcpm2" else "edge_tts"
 
     def _load_existing_jobs(self):
-        """Scans disk for previous jobs to restore history on startup."""
         if not JOBS_DIR.exists():
             return
-        for job_folder in JOBS_DIR.iterdir():
-            if not job_folder.is_dir() or not job_folder.name.startswith("job_"):
+        for folder in JOBS_DIR.iterdir():
+            if not folder.is_dir() or not folder.name.startswith("job_"):
                 continue
-            job_id = job_folder.name
-            summary_file = job_folder / "job_summary.json"
-            created_time = job_folder.stat().st_ctime
-            
+            summary_file = folder / "job_summary.json"
+            created = folder.stat().st_ctime
             if summary_file.exists():
                 try:
-                    with open(summary_file, "r", encoding="utf-8") as f:
-                        summary_data = json.load(f)
-                    self.jobs[job_id] = {
-                        "job_id": job_id,
-                        "status": "completed",
-                        "stage": STAGES[7],
-                        "progress": 100.0,
-                        "created_at": created_time,
-                        "summary": summary_data,
-                        "video_url": f"/api/jobs/{job_id}/files/final_video.mp4",
-                        "srt_url": f"/api/jobs/{job_id}/files/subtitles.srt"
+                    summary = json.loads(summary_file.read_text(encoding="utf-8"))
+                    self.jobs[folder.name] = {
+                        "job_id": folder.name, "status": "completed", "stage": STAGES[7],
+                        "progress": 100.0, "created_at": created, "summary": summary,
+                        "video_url": f"/api/jobs/{folder.name}/files/final_video.mp4",
+                        "srt_url": f"/api/jobs/{folder.name}/files/subtitles.srt",
                     }
                 except Exception:
                     pass
-            else:
-                # Incomplete or interrupted job
-                self.jobs[job_id] = {
-                    "job_id": job_id,
-                    "status": "failed",
-                    "stage": "မအောင်မြင်ပါ",
-                    "progress": 0.0,
-                    "created_at": created_time,
-                    "error": "စနစ်ပြန်လည်စတင်ချိန်တွင် ရပ်တန့်သွားခဲ့ပါသည်"
+            elif folder.name not in self.jobs:
+                self.jobs[folder.name] = {
+                    "job_id": folder.name, "status": "failed", "stage": "မအောင်မြင်ပါ",
+                    "progress": 0.0, "created_at": created,
+                    "error": "စနစ်ပြန်လည်စတင်ချိန်တွင် ရပ်တန့်သွားခဲ့ပါသည်",
                 }
 
     def broadcast_event(self, job_id: str, event: Dict[str, Any]):
         with self.lock:
             if job_id in self.jobs:
                 self.jobs[job_id]["latest_event"] = event
-                self.jobs[job_id]["stage"] = event.get("stage")
-                self.jobs[job_id]["progress"] = event.get("progress", 0.0)
-
+                self.jobs[job_id]["stage"] = event.get("stage", self.jobs[job_id].get("stage"))
+                self.jobs[job_id]["progress"] = event.get("progress", self.jobs[job_id].get("progress", 0.0))
+                if event.get("message"):
+                    self.jobs[job_id]["message"] = event["message"]
             queues = list(self.event_queues.get(job_id, []))
-
         for q in queues:
             try:
                 loop = getattr(q, "_loop", None)
@@ -87,246 +84,174 @@ class JobQueueManager:
             except Exception:
                 pass
 
+    def _capacity(self, engine: str) -> int:
+        return VOXCPM_MAX_CONCURRENT if engine == "voxcpm2" else EDGE_MAX_CONCURRENT
+
+    def _can_start(self, engine: str) -> bool:
+        return self.active_counts.get(engine, 0) < self._capacity(engine)
+
     def _get_queue_position_unlocked(self, job_id: str) -> int:
-        """Returns 1-based position in queue, or 0 if active/not queued (caller must hold lock or accept snapshot)."""
-        if self.active_job_id == job_id:
-            return 0
-        items = list(self.job_queue.queue)
-        for idx, item in enumerate(items):
+        for index, item in enumerate(self.pending_jobs):
             if item["job_id"] == job_id:
-                return idx + 1
+                return index + 1
         return 0
 
     def get_queue_position(self, job_id: str) -> int:
-        """Returns 1-based position in queue, or 0 if active/not queued."""
         with self.lock:
             return self._get_queue_position_unlocked(job_id)
 
-    def submit_job(
-        self,
-        video_url: Optional[str] = None,
-        uploaded_video_path: Optional[Path] = None,
-        target_language: Optional[str] = None,
-        enable_subtitles: bool = True,
-        font_color: Optional[str] = None,
-        font_size_px: Optional[int] = None,
-        font_style: Optional[str] = None,
-        subtitle_pos_x: Optional[float] = None,
-        subtitle_pos_y: Optional[float] = None
-    ) -> str:
+    def submit_job(self, video_url=None, uploaded_video_path=None, target_language=None,
+                   enable_subtitles=True, font_color=None, font_size_px=None,
+                   font_style=None, subtitle_pos_x=None, subtitle_pos_y=None) -> str:
         job_id = f"job_{uuid.uuid4().hex[:8]}"
         job_dir = JOBS_DIR / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
-
+        engine = self._engine(settings_manager.get("voice_engine", "edge_tts"))
         job_data = {
-            "job_id": job_id,
-            "job_dir": str(job_dir),
-            "video_url": video_url,
+            "job_id": job_id, "job_dir": str(job_dir), "video_url": video_url,
             "uploaded_video_path": str(uploaded_video_path) if uploaded_video_path else None,
             "target_language": target_language or settings_manager.get("target_language", "my"),
             "enable_subtitles": enable_subtitles,
             "font_color": font_color or settings_manager.get("font_color", "#FFFFFF"),
             "font_size_px": font_size_px or int(settings_manager.get("font_size_px", 36)),
-            "font_style": font_style or settings_manager.get("font_style", "Myanmar Text"),
+            "font_style": font_style or settings_manager.get("font_style", "Noto Sans Myanmar"),
             "subtitle_pos_x": subtitle_pos_x if subtitle_pos_x is not None else float(settings_manager.get("subtitle_pos_x", 50.0)),
             "subtitle_pos_y": subtitle_pos_y if subtitle_pos_y is not None else float(settings_manager.get("subtitle_pos_y", 82.0)),
-            "created_at": time.time(),
-            "status": "queued",
-            "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...",
-            "progress": 0.0
+            "voice_engine": engine, "created_at": time.time(), "status": "queued",
+            "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }
-
-        with self.lock:
+        with self.condition:
             self.jobs[job_id] = job_data
             self.event_queues[job_id] = []
-            self.job_queue.put(job_data)
-            queue_pos = self.job_queue.qsize()
-
-        # Send initial queued notification
+            self.pending_jobs.append(job_data)
+            position = self._get_queue_position_unlocked(job_id)
+            self.condition.notify_all()
         self.broadcast_event(job_id, {
-            "job_id": job_id,
-            "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...",
-            "stage_index": 0,
-            "total_stages": len(STAGES),
-            "queue_position": queue_pos,
-            "message": f"Queue တွင် စောင့်ဆိုင်းနေပါသည် (နံပါတ် #{queue_pos})...",
-            "progress": 0.0
+            "job_id": job_id, "stage": job_data["stage"], "stage_index": 0,
+            "total_stages": len(STAGES), "queue_position": position,
+            "message": f"{engine} slot ရရှိရန် စောင့်ဆိုင်းနေပါသည် (နံပါတ် #{position})...",
+            "progress": 0.0, "voice_engine": engine,
         })
-
         return job_id
 
-    def _worker_loop(self):
-        """Sequential single-job execution worker to prevent hardware/ffmpeg congestion."""
+    def _scheduler_loop(self):
         while True:
-            try:
-                job_data = self.job_queue.get()
-                job_id = job_data["job_id"]
-                job_dir = Path(job_data["job_dir"])
+            with self.condition:
+                while not self.pending_jobs:
+                    self.condition.wait(timeout=1.0)
+                selected = None
+                for item in self.pending_jobs:
+                    if self._can_start(item["voice_engine"]):
+                        selected = item
+                        break
+                if selected is None:
+                    self.condition.wait(timeout=0.5)
+                    continue
+                self.pending_jobs.remove(selected)
+                job_id = selected["job_id"]
+                engine = selected["voice_engine"]
+                self.active_jobs[job_id] = selected
+                self.active_counts[engine] += 1
+                self.active_job_id = next(iter(self.active_jobs), None)
+                self.jobs[job_id]["status"] = "running"
+                self.jobs[job_id]["slot"] = f"{engine}:{self.active_counts[engine]}/{self._capacity(engine)}"
+                if engine == "voxcpm2":
+                    selected["voxcpm_device"] = f"cuda:{self.active_counts[engine] - 1}"
+                    self.jobs[job_id]["voxcpm_device"] = selected["voxcpm_device"]
+            self.executor.submit(self._run_one, selected)
 
-                with self.lock:
-                    self.active_job_id = job_id
-                    self.jobs[job_id]["status"] = "running"
-                    self.jobs[job_id]["stage"] = STAGES[0]
+    def _run_one(self, job_data: Dict[str, Any]):
+        job_id = job_data["job_id"]
+        try:
+            self._execute_pipeline(job_data, Path(job_data["job_dir"]))
+        except Exception as exc:
+            self._mark_failed(job_id, exc)
+        finally:
+            with self.condition:
+                engine = job_data["voice_engine"]
+                self.active_counts[engine] = max(0, self.active_counts[engine] - 1)
+                self.active_jobs.pop(job_id, None)
+                self.active_job_id = next(iter(self.active_jobs), None)
+                self.condition.notify_all()
 
-                # Update any other remaining queued jobs about their new positions
-                with self.lock:
-                    queued_items = list(self.job_queue.queue)
-                for idx, q_item in enumerate(queued_items):
-                    pos = idx + 1
-                    self.broadcast_event(q_item["job_id"], {
-                        "job_id": q_item["job_id"],
-                        "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...",
-                        "stage_index": 0,
-                        "total_stages": len(STAGES),
-                        "queue_position": pos,
-                        "message": f"Queue တွင် စောင့်ဆိုင်းနေပါသည် (နံပါတ် #{pos})...",
-                        "progress": 0.0
-                    })
-
-                self._execute_pipeline(job_data, job_dir)
-
-            except Exception as e:
-                print(f"[QueueWorker] Unexpected error in worker loop: {e}")
-            finally:
-                with self.lock:
-                    self.active_job_id = None
-                self.job_queue.task_done()
+    def _mark_failed(self, job_id: str, exc: Exception):
+        error = str(exc)
+        with self.lock:
+            if job_id in self.jobs:
+                self.jobs[job_id].update(status="failed", stage="မအောင်မြင်ပါ", error=error)
+        self.broadcast_event(job_id, {
+            "job_id": job_id, "status": "failed", "stage": "မအောင်မြင်ပါ", "stage_index": 0,
+            "message": f"Error: {error}", "progress": 0.0, "data": {"error": error},
+        })
 
     def _execute_pipeline(self, job_data: Dict[str, Any], job_dir: Path):
         job_id = job_data["job_id"]
-        groq_key = settings_manager.get_groq_key()
-        gemini_key = settings_manager.get_gemini_key()
-        target_lang = job_data["target_language"]
         uploaded_path = Path(job_data["uploaded_video_path"]) if job_data.get("uploaded_video_path") else None
-
         orchestrator = PipelineOrchestrator(
-            job_id=job_id,
-            job_dir=job_dir,
-            event_callback=lambda evt: self.broadcast_event(job_id, evt)
+            job_id=job_id, job_dir=job_dir,
+            event_callback=lambda evt: self.broadcast_event(job_id, evt),
         )
-
-        try:
-            res = orchestrator.run(
-                video_url=job_data.get("video_url"),
-                uploaded_video_path=uploaded_path,
-                groq_api_key=groq_key,
-                gemini_api_key=gemini_key,
-                voice_engine=settings_manager.get("voice_engine", "edge_tts"),
-                edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
-                voxcpm_voice_path=settings_manager.get("voxcpm_voice_path", ""),
-                voxcpm_ref_text=settings_manager.get("voxcpm_reference_text", ""),
-                gemini_mode=settings_manager.get("gemini_prompt_mode", "translate"),
-                target_language=target_lang,
-                font_color=job_data["font_color"],
-                font_size_px=job_data["font_size_px"],
-                font_style=job_data["font_style"],
-                pos_x_pct=job_data["subtitle_pos_x"],
-                pos_y_pct=job_data["subtitle_pos_y"],
-                enable_subtitles=job_data["enable_subtitles"]
+        result = orchestrator.run(
+            video_url=job_data.get("video_url"), uploaded_video_path=uploaded_path,
+            groq_api_key=settings_manager.get_groq_key(), gemini_api_key=settings_manager.get_gemini_key(),
+            voice_engine=job_data["voice_engine"],
+            edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
+            voxcpm_voice_path=settings_manager.get("voxcpm_voice_path", ""),
+            voxcpm_ref_text=settings_manager.get("voxcpm_reference_text", ""),
+            voxcpm_device=job_data.get("voxcpm_device"),
+            gemini_mode=settings_manager.get("gemini_prompt_mode", "translate"),
+            target_language=job_data["target_language"], font_color=job_data["font_color"],
+            font_size_px=job_data["font_size_px"], font_style=job_data["font_style"],
+            pos_x_pct=job_data["subtitle_pos_x"], pos_y_pct=job_data["subtitle_pos_y"],
+            enable_subtitles=job_data["enable_subtitles"],
+        )
+        with self.lock:
+            self.jobs[job_id].update(
+                status="completed", stage=STAGES[7], progress=100.0, summary=result,
+                video_url=f"/api/jobs/{job_id}/files/final_video.mp4",
+                srt_url=f"/api/jobs/{job_id}/files/subtitles.srt",
             )
-
-            with self.lock:
-                self.jobs[job_id]["status"] = "completed"
-                self.jobs[job_id]["stage"] = STAGES[7]
-                self.jobs[job_id]["progress"] = 100.0
-                self.jobs[job_id]["summary"] = res
-                self.jobs[job_id]["video_url"] = f"/api/jobs/{job_id}/files/final_video.mp4"
-                self.jobs[job_id]["srt_url"] = f"/api/jobs/{job_id}/files/subtitles.srt"
-
-            self.broadcast_event(job_id, {
-                "job_id": job_id,
-                "status": "completed",
-                "stage": STAGES[7],
-                "stage_index": len(STAGES),
-                "message": "ဗီဒီယို ဖန်တီးခြင်း အောင်မြင်စွာ ပြီးဆုံးပါပြီ!",
-                "progress": 100.0,
-                "data": res
-            })
-
-        except Exception as e:
-            with self.lock:
-                self.jobs[job_id]["status"] = "failed"
-                self.jobs[job_id]["stage"] = "မအောင်မြင်ပါ"
-                self.jobs[job_id]["error"] = str(e)
-
-            self.broadcast_event(job_id, {
-                "job_id": job_id,
-                "status": "failed",
-                "stage": "မအောင်မြင်ပါ",
-                "stage_index": 0,
-                "message": f"Error: {str(e)}",
-                "progress": 0.0,
-                "data": {"error": str(e)}
-            })
+        self.broadcast_event(job_id, {
+            "job_id": job_id, "status": "completed", "stage": STAGES[7],
+            "stage_index": len(STAGES), "message": "ဗီဒီယို ဖန်တီးခြင်း အောင်မြင်စွာ ပြီးဆုံးပါပြီ!",
+            "progress": 100.0, "data": result,
+        })
 
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         with self.lock:
             job = self.jobs.get(job_id)
             if job:
-                # Add queue position if applicable
-                q_pos = self._get_queue_position_unlocked(job_id)
-                res = job.copy()
-                res["queue_position"] = q_pos
-                return res
-
-        # Try disk if not in memory
-        job_dir = JOBS_DIR / job_id
-        if job_dir.exists():
-            summary_file = job_dir / "job_summary.json"
-            if summary_file.exists():
-                try:
-                    with open(summary_file, "r", encoding="utf-8") as f:
-                        summary_data = json.load(f)
-                    return {
-                        "job_id": job_id,
-                        "status": "completed",
-                        "stage": STAGES[7],
-                        "progress": 100.0,
-                        "created_at": job_dir.stat().st_ctime,
-                        "summary": summary_data,
-                        "video_url": f"/api/jobs/{job_id}/files/final_video.mp4",
-                        "srt_url": f"/api/jobs/{job_id}/files/subtitles.srt"
-                    }
-                except Exception:
-                    pass
+                result = job.copy()
+                result["queue_position"] = self._get_queue_position_unlocked(job_id)
+                result["running_count"] = len(self.active_jobs)
+                result["edge_running"] = self.active_counts["edge_tts"]
+                result["voxcpm_running"] = self.active_counts["voxcpm2"]
+                return result
         return None
 
     def list_jobs(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Returns sorted list of all jobs for History view."""
-        history = []
+        items = []
         with self.lock:
-            all_cached_ids = set(self.jobs.keys())
-
-        # Also inspect directories in case disk has more
-        for f in JOBS_DIR.iterdir():
-            if f.is_dir() and f.name.startswith("job_"):
-                all_cached_ids.add(f.name)
-
-        for j_id in all_cached_ids:
-            j_info = self.get_job(j_id)
-            if not j_info:
+            ids = list(self.jobs.keys())
+        for job_id in ids:
+            job = self.get_job(job_id)
+            if not job:
                 continue
-
-            summary = j_info.get("summary", {})
-            created = j_info.get("created_at", 0)
-            
-            item = {
-                "job_id": j_id,
-                "status": j_info.get("status", "unknown"),
-                "stage": j_info.get("stage", ""),
-                "created_at": created,
-                "created_at_formatted": time.strftime("%Y-%m-%d %H:%M", time.localtime(created)),
+            folder = JOBS_DIR / job_id
+            summary = job.get("summary", {}) or {}
+            items.append({
+                "job_id": job_id, "status": job.get("status", "unknown"),
+                "stage": job.get("stage", ""), "created_at": job.get("created_at", 0),
+                "created_at_formatted": time.strftime("%Y-%m-%d %H:%M", time.localtime(job.get("created_at", 0))),
                 "duration": summary.get("final_duration_formatted", "--:--"),
                 "processed_text_snippet": (summary.get("processed_text") or "")[:120],
-                "video_url": f"/api/jobs/{j_id}/files/final_video.mp4" if (JOBS_DIR / j_id / "final_video.mp4").exists() else None,
-                "srt_url": f"/api/jobs/{j_id}/files/subtitles.srt" if (JOBS_DIR / j_id / "subtitles.srt").exists() else None,
-                "has_video": (JOBS_DIR / j_id / "final_video.mp4").exists(),
-                "has_srt": (JOBS_DIR / j_id / "subtitles.srt").exists()
-            }
-            history.append(item)
-
-        history.sort(key=lambda x: x["created_at"], reverse=True)
-        return history[:limit]
+                "video_url": f"/api/jobs/{job_id}/files/final_video.mp4" if (folder / "final_video.mp4").exists() else None,
+                "srt_url": f"/api/jobs/{job_id}/files/subtitles.srt" if (folder / "subtitles.srt").exists() else None,
+                "has_video": (folder / "final_video.mp4").exists(), "has_srt": (folder / "subtitles.srt").exists(),
+                "voice_engine": job.get("voice_engine", "edge_tts"),
+            })
+        items.sort(key=lambda x: x["created_at"], reverse=True)
+        return items[:limit]
 
 
 job_queue_manager = JobQueueManager()

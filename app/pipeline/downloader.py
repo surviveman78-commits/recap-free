@@ -39,8 +39,14 @@ class VideoDownloader:
 
     def download(self, url: str) -> Path:
         out_template = str(self.output_dir / "downloaded_video.%(ext)s")
+        cookie_candidates = [
+            Path(os.getenv("YTDLP_COOKIES", "")) if os.getenv("YTDLP_COOKIES") else None,
+            self.output_dir.parent.parent / "youtube_cookies.txt",
+            Path("/kaggle/working/youtube_cookies.txt"),
+        ]
+        cookie_file = next((p for p in cookie_candidates if p and p.exists()), None)
         ydl_opts = {
-            'format': 'bestvideo*+bestaudio/best',
+            'format': 'bv*+ba/b',
             'format_sort': ['res:2160', 'res', 'fps', 'quality', 'size', 'br'],
             'outtmpl': out_template,
             'merge_output_format': 'mp4',
@@ -50,13 +56,25 @@ class VideoDownloader:
             'retries': 10,
             'fragment_retries': 10,
             'http_chunk_size': 10485760,
-            'extractor_args': {'youtube': {'player_client': ['web', 'tv_embedded', 'android']}},
             'quiet': True,
             'no_warnings': True
         }
+        if cookie_file:
+            ydl_opts['cookiefile'] = str(cookie_file)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except yt_dlp.utils.DownloadError as exc:
+            message = str(exc)
+            if "not a bot" in message.lower() or "sign in" in message.lower() or "confirm" in message.lower():
+                raise RuntimeError(
+                    "YouTube က Kaggle IP ကို anti-bot ဖြင့်ပိတ်ထားပါသည်။ "
+                    "အခြား public video တစ်ခု စမ်းပါ၊ local video upload လုပ်ပါ၊ "
+                    "သို့မဟုတ် ကိုယ်ပိုင် YouTube cookies file ကို youtube_cookies.txt အဖြစ် "
+                    "Kaggle Input ထဲထည့်ပြီး server မစခင် /kaggle/working/youtube_cookies.txt သို့ copy လုပ်ပါ။"
+                ) from exc
+            raise RuntimeError(f"Video download failed: {message[:500]}") from exc
 
         # Locate resulting video
         candidates = list(self.output_dir.glob("downloaded_video.*"))

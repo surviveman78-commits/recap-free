@@ -23,6 +23,7 @@ let currentInputMode = "link";
 let activeJobId = null;        // currently watched job in main view
 let allJobs = {};              // all known job states { jobId: {...} }
 let jobEventSources = {};      // SSE connections per job
+let jobPollers = {};           // polling fallback for buffered SSE/proxy connections
 
 // Drag state
 let subPosX = 50.0;
@@ -957,10 +958,42 @@ startBtn.addEventListener("click", async () => {
 // ──────────────────────────────────────────────
 // SSE - Main view job
 // ──────────────────────────────────────────────
+function startJobPolling(jobId) {
+  if (jobPollers[jobId]) return;
+  const poll = async () => {
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const job = await res.json();
+      if (!allJobs[jobId]) allJobs[jobId] = { job_id: jobId };
+      allJobs[jobId] = { ...allJobs[jobId], ...job };
+      saveJobsToStorage();
+      renderQueuePanel();
+      if (jobId === activeJobId && job.stage) {
+        updateProgressUI(job.stage, job.stage_index || 1, job.progress || 0, job.message || job.stage);
+      }
+      if (job.status === "completed" || job.status === "failed") {
+        clearInterval(jobPollers[jobId]);
+        delete jobPollers[jobId];
+        if (job.status === "completed" && jobId === activeJobId && job.summary) showCompletedView(jobId, job.summary);
+        if (job.status === "failed" && jobId === activeJobId) {
+          showToast(`မအောင်မြင်ပါ: ${job.error || "Job failed"}`, "error");
+          inputSection.style.display = "block";
+          progressSection.style.display = "none";
+          saveActiveJobToStorage(null);
+        }
+      }
+    } catch (err) { console.warn("Job status polling failed", err); }
+  };
+  poll();
+  jobPollers[jobId] = setInterval(poll, 2000);
+}
+
 function connectSSE(jobId) {
   if (currentEventSource) { try { currentEventSource.close(); } catch (e) {} }
 
   currentEventSource = new EventSource(`/api/jobs/${jobId}/stream`);
+  startJobPolling(jobId);
 
   currentEventSource.onmessage = (e) => {
     try {
@@ -988,6 +1021,7 @@ function connectSSE(jobId) {
 
       if (stage === BURMESE_STAGES[7]) {
         currentEventSource.close();
+        if (jobPollers[jobId]) { clearInterval(jobPollers[jobId]); delete jobPollers[jobId]; }
         if (allJobs[jobId]) {
           allJobs[jobId].status = "completed";
           allJobs[jobId].summary = data;
@@ -1004,6 +1038,7 @@ function connectSSE(jobId) {
 
       if (stage === "မအောင်မြင်ပါ") {
         currentEventSource.close();
+        if (jobPollers[jobId]) { clearInterval(jobPollers[jobId]); delete jobPollers[jobId]; }
         if (allJobs[jobId]) { allJobs[jobId].status = "failed"; allJobs[jobId].error = data.error || message; }
         saveJobsToStorage();
         renderQueuePanel();
@@ -1018,7 +1053,17 @@ function connectSSE(jobId) {
     } catch (err) { console.error("SSE parse error:", err); }
   };
 
-  currentEventSource.onerror = () => {};
+  currentEventSource.onerror = () => {
+    // Cloudflare may reconnect/buffer SSE; the REST poller remains authoritative.
+    const job = allJobs[jobId];
+    if (job && job.status !== "completed" && job.status !== "failed") {
+      setTimeout(() => {
+        if (allJobs[jobId] && allJobs[jobId].status !== "completed" && allJobs[jobId].status !== "failed") {
+          connectSSE(jobId);
+        }
+      }, 3000);
+    }
+  };
 }
 
 // SSE for background (queue) jobs - only updates allJobs state

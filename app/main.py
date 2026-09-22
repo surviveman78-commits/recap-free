@@ -88,7 +88,7 @@ async def update_settings(payload: SettingsUpdateRequest):
 @app.get("/api/fonts")
 async def get_fonts():
     """Returns custom uploaded fonts and system fonts with Myanmar Text prioritized."""
-    fonts_list = ["Myanmar Text"]
+    fonts_list = ["Noto Sans Myanmar", "Padauk"]
 
     # 1. Custom uploaded fonts
     if CUSTOM_FONTS_DIR.exists():
@@ -100,7 +100,7 @@ async def get_fonts():
 
     # 2. System fonts
     preferred = [
-        "Arial", "Segoe UI", "Tahoma", "Calibri",
+        "Noto Sans Myanmar", "Padauk", "Arial", "Segoe UI", "Tahoma", "Calibri",
         "Verdana", "Impact", "Trebuchet MS", "Times New Roman",
         "Georgia", "Consolas", "Comic Sans MS"
     ]
@@ -130,12 +130,15 @@ async def upload_custom_font(file: UploadFile = File(...)):
     if ext not in ('.ttf', '.otf'):
         raise HTTPException(status_code=400, detail="Only .ttf and .otf font files are supported.")
 
-    dest = CUSTOM_FONTS_DIR / file.filename
+    safe_filename = Path(file.filename).name.replace(" ", "_")
+    if not safe_filename:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    dest = CUSTOM_FONTS_DIR / safe_filename
     with open(dest, "wb") as f:
         f.write(await file.read())
 
     # Set as active font
-    font_name = Path(file.filename).stem
+    font_name = Path(safe_filename).stem
     settings_manager.save({
         "font_style": font_name,
         "custom_font_name": file.filename,
@@ -202,7 +205,7 @@ async def upload_reference_audio(
     if ext not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported format {ext}. Allowed: WAV, MP3, M4A, FLAC, OGG.")
 
-    safe_name = f"ref_{uuid.uuid4().hex[:6]}_{file.filename}"
+    safe_name = f"ref_{uuid.uuid4().hex[:6]}_{Path(file.filename).name.replace(' ', '_')}"
     dest = CUSTOM_VOICES_DIR / safe_name
     with open(dest, "wb") as f:
         f.write(await file.read())
@@ -237,15 +240,20 @@ async def get_gpu_status():
 
 @app.get("/api/queue")
 async def get_queue_info():
-    """Returns active job ID and queued count."""
+    """Returns concurrent active jobs, engine slots, and pending jobs."""
     with job_queue_manager.lock:
-        active_id = job_queue_manager.active_job_id
-        queued_count = job_queue_manager.job_queue.qsize()
-        queued_ids = [item["job_id"] for item in list(job_queue_manager.job_queue.queue)]
+        active_ids = list(job_queue_manager.active_jobs.keys())
+        queued_ids = [item["job_id"] for item in job_queue_manager.pending_jobs]
     return {
-        "active_job_id": active_id,
-        "queued_count": queued_count,
-        "queued_job_ids": queued_ids
+        "active_job_id": active_ids[0] if active_ids else None,
+        "active_job_ids": active_ids,
+        "running_count": len(active_ids),
+        "queued_count": len(queued_ids),
+        "queued_job_ids": queued_ids,
+        "edge_running": job_queue_manager.active_counts["edge_tts"],
+        "edge_limit": 5,
+        "voxcpm_running": job_queue_manager.active_counts["voxcpm2"],
+        "voxcpm_limit": 2,
     }
 
 
@@ -354,7 +362,10 @@ async def create_job_upload(
     # Stash uploaded file in dedicated uploads folder
     upload_dir = DATA_DIR / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
-    temp_dest = upload_dir / f"up_{uuid.uuid4().hex[:6]}_{file.filename}"
+    safe_filename = Path(file.filename).name.replace(" ", "_")
+    if not safe_filename:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    temp_dest = upload_dir / f"up_{uuid.uuid4().hex[:6]}_{safe_filename}"
     with open(temp_dest, "wb") as f:
         f.write(await file.read())
 
@@ -423,20 +434,31 @@ async def stream_job_events(job_id: str):
                     if event.get("stage") in (STAGES[7], "မအောင်မြင်ပါ") or event.get("status") in ("completed", "failed"):
                         break
                 except asyncio.TimeoutError:
-                    yield f": ping\n\n"
+                    # Padding forces Cloudflare/browser proxies to flush the stream.
+                    yield f": {('ping ' * 500)}\n\n"
         finally:
             with job_queue_manager.lock:
                 if job_id in job_queue_manager.event_queues and q in job_queue_manager.event_queues[job_id]:
                     job_queue_manager.event_queues[job_id].remove(q)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 
 @app.get("/api/jobs/{job_id}/files/{filename}")
 async def get_job_file(job_id: str, filename: str):
     job_dir = JOBS_DIR / job_id
-    file_path = job_dir / filename
+    file_path = (job_dir / filename).resolve()
+    if job_dir.resolve() not in file_path.parents:
+        raise HTTPException(status_code=400, detail="Invalid file path.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File {filename} not found.")
 

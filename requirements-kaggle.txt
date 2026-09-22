@@ -1,0 +1,6 @@
+# Lean Kaggle profile: Edge TTS is the default and does not require a local model.
+-r requirements.txt
+yt-dlp>=2025.01.15
+voxcpm>=0.1.0
+
+# Both Edge TTS and VoxCPM2 are installed. Choose the engine from the UI.

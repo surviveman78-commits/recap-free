@@ -1,0 +1,3 @@
+# Install after requirements-kaggle.txt when the VoxCPM2 engine is selected in the UI.
+# Official package: https://voxcpm.readthedocs.io/en/latest/quickstart.html
+voxcpm>=0.1.0

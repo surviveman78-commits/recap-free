@@ -1,0 +1,126 @@
+RECAP FREE — KAGGLE RUN CELLS v9
+=================================
+
+v9 concurrency:
+- Edge TTS: အများဆုံး ၅ ပုဒ် တစ်ပြိုင်တည်း
+- VoxCPM2: အများဆုံး ၂ ပုဒ် တစ်ပြိုင်တည်း; cuda:0/cuda:1 ခွဲပေးမည်
+- Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
+- Job တင်ချိန်မှာရွေးထားတဲ့ Voice Engine ကို snapshot သိမ်းမည်
+- Cloud API Transcribe/Translate (Groq + Gemini) မပြောင်းပါ
+
+သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
+
+CELL 1 — Project copy
+----------------------
+import shutil
+from pathlib import Path
+input_root = Path('/kaggle/input')
+project = Path('/kaggle/working/recap-free')
+shutil.rmtree(project, ignore_errors=True)
+launchers = list(input_root.rglob('kaggle_foreground.py'))
+if not launchers:
+    raise FileNotFoundError('recap-free-kaggle-v9.zip dataset ကို attach လုပ်ထားတာ စစ်ပါ။')
+shutil.copytree(launchers[0].parent, project)
+print('Project ready:', project)
+
+CELL 2 — Install
+-----------------
+%cd /kaggle/working/recap-free
+!apt-get update -qq
+!apt-get install -y -qq ffmpeg fontconfig fonts-noto-core fonts-sil-padauk fonts-myanmar libsndfile1
+!fc-cache -f
+!pip install -q -r requirements-kaggle.txt
+import edge_tts, voxcpm
+print('Edge TTS READY; VoxCPM2 READY')
+
+CELL 3 — Download VoxCPM2 model
+--------------------------------
+%cd /kaggle/working/recap-free
+from huggingface_hub import snapshot_download
+import os
+model_dir = '/kaggle/working/models/VoxCPM2'
+snapshot_download(repo_id='openbmb/VoxCPM2', local_dir=model_dir)
+os.environ['VOXCPM_MODEL_ID'] = model_dir
+print('VoxCPM2 model files ready:', model_dir)
+
+CELL 4 — Start server
+----------------------
+%cd /kaggle/working/recap-free
+!python kaggle_foreground.py
+
+Cell 4 ကို running ထားပါ။ Output ထဲက trycloudflare URL ကို browser မှာဖွင့်ပါ။
+
+UI အသုံးပြုရန်
+--------------
+1. Settings ထဲမှာ Groq/Gemini API key ထည့်ပြီး Save လုပ်ပါ။
+2. Voice Engine ကို Edge TTS ထားပြီး video ၅ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
+3. Voice Engine ကို VoxCPM2 ထားပြီး video ၂ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
+4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
+5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
+6. Font ကို Noto Sans Myanmar သို့မဟုတ် Padauk ရွေးပါ။
+
+UI မှာ Edge TTS ၅ jobs နဲ့ VoxCPM2 ၂ jobs ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
+
+
+OPTIONAL PRECHECK — T4 နှစ်လုံးစစ်ရန်
+--------------------------------------
+import torch
+print('GPU count:', torch.cuda.device_count())
+for i in range(torch.cuda.device_count()):
+    print(i, torch.cuda.get_device_name(i), round(torch.cuda.get_device_properties(i).total_memory/1024**3, 2), 'GB')
+
+GPU count 2 မဟုတ်ရင် VoxCPM2 ၂ jobs မစမ်းပါနှင့်။
+
+
+RECOVERY CELL — URL DNS error / site can’t be reached
+------------------------------------------------------
+# ဒီ cell က dead tunnel/server ကိုရှင်းပြီး fresh URL အသစ်ပြန်ထုတ်ပါမယ်။
+import os, signal, subprocess, sys, time
+from pathlib import Path
+
+root = Path('/kaggle/working/recap-free')
+os.chdir(root)
+
+# Old server/tunnel processes ရှင်းရန်
+subprocess.run("pkill -f 'cloudflared.*127.0.0.1:8000'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run("pkill -f 'python.*run.py'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+time.sleep(2)
+
+# Old logs မပေါင်းအောင် rename လုပ်ထားမယ်
+log_dir = root / 'logs'
+log_dir.mkdir(exist_ok=True)
+for name in ['cloudflared.log', 'server_foreground.log']:
+    p = log_dir / name
+    if p.exists():
+        p.rename(log_dir / f'{name}.old')
+
+# Supervisor ကို background မှာ run; ၎င်းက tunnel ပျက်တိုင်း URL အသစ်ပြန်ထုတ်မယ်
+log = (log_dir / 'supervisor_notebook.log').open('ab')
+proc = subprocess.Popen(
+    [sys.executable, 'kaggle_foreground.py'],
+    cwd=root, stdout=log, stderr=subprocess.STDOUT,
+    stdin=subprocess.DEVNULL, start_new_session=True,
+)
+print('Supervisor PID:', proc.pid)
+print('၅–၁၀ စက္ကန့်စောင့်ပြီး အောက်က Cell ကို run ပါ။')
+
+
+RECOVERY CELL 2 — URL အသစ်ဖတ်ရန်
+---------------------------------
+from pathlib import Path
+import re, time
+
+log_path = Path('/kaggle/working/recap-free/logs/supervisor_notebook.log')
+for _ in range(12):
+    if log_path.exists():
+        text = log_path.read_text(errors='ignore')
+        urls = re.findall(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', text)
+        if urls:
+            print('CURRENT PUBLIC URL:', urls[-1])
+            break
+    time.sleep(2)
+else:
+    print('URL မထွက်သေးပါ။ log ကိုစစ်ပါ:')
+    print(log_path.read_text(errors='ignore')[-3000:] if log_path.exists() else 'no log yet')
+
+အဟောင်း URL ကို မသုံးပါနှင့်။ `CURRENT PUBLIC URL` နောက်ဆုံးတစ်ခုကိုသာ browser မှာဖွင့်ပါ။
