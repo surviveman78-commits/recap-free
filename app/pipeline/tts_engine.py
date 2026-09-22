@@ -206,17 +206,31 @@ class TTSEngine:
         model = VoxCPMManager.get_model(device=device)
         generate_kwargs = {
             "text": text,
-            "cfg_value": 2.0,
-            "inference_timesteps": 10,
+            # Lower guidance is more stable for long Burmese recap narration.
+            "cfg_value": float(os.getenv("RECAP_VOXCPM_CFG", "1.6")),
+            "inference_timesteps": int(os.getenv("RECAP_VOXCPM_STEPS", "20")),
+            "retry_badcase": True,
+            "normalize": True,
         }
         clean_ref = self._prepare_reference_audio(voice_path) if voice_path else None
         if clean_ref:
             generate_kwargs["reference_wav_path"] = clean_ref
-            if reference_text and reference_text.strip():
+            # Do not use prompt_wav_path/prompt_text by default. That is a
+            # continuation-style mode and mismatched reference text can make
+            # VoxCPM repeat a short phrase at the beginning or end. Enable
+            # hi-fi prompt conditioning only when the transcript is exact.
+            if os.getenv("RECAP_VOXCPM_HIFI", "0") == "1" and reference_text and reference_text.strip():
                 generate_kwargs["prompt_wav_path"] = clean_ref
                 generate_kwargs["prompt_text"] = reference_text.strip()
 
-        wav = model.generate(**generate_kwargs)
+        try:
+            wav = model.generate(**generate_kwargs)
+        except TypeError:
+            # Compatibility fallback for older VoxCPM builds without the
+            # optional retry/normalization keyword arguments.
+            for key in ("retry_badcase", "normalize"):
+                generate_kwargs.pop(key, None)
+            wav = model.generate(**generate_kwargs)
         sample_rate = getattr(model.tts_model, "sample_rate", 24000)
         sf.write(str(output_path), wav, sample_rate)
 
