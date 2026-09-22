@@ -198,7 +198,7 @@ recap-free/
 
 ## Current scope and limitations
 
-The application supports two AI modes. **Local AI** uses a pre-downloaded faster-whisper large-v3 model for transcription and NLLB-200 distilled 1.3B for faithful translation; once Cell 3 finishes, the UI does not download models. **Cloud API** uses Groq for transcription and Gemini for faithful translation. Edge TTS still uses a network service, while VoxCPM2 is the local voice-generation option. Local Whisper and NLLB are placed on separate T4 GPUs when two GPUs are available, with a safe single-GPU fallback.
+The application supports two AI modes. **Local AI** uses a pre-downloaded faster-whisper large-v3 model for transcription and NLLB-200 distilled 1.3B for translation; once Cell 3 finishes, the UI does not download models. **Cloud API** uses Groq for transcription and Gemini for translation. In Gemini mode, the translation prompt explicitly requests natural spoken movie-recap voice-over language rather than book-like or word-for-word output, while preserving all important source information. The spoken-style prompt cannot be applied directly to NLLB because NLLB is a translation model rather than an instruction-following chat model. Edge TTS still uses a network service, while VoxCPM2 is the local voice-generation option. Local Whisper and NLLB are placed on separate T4 GPUs when two GPUs are available, with a safe single-GPU fallback.
 
 The project is intended for controlled personal and development use. It does not bypass access controls, guarantee that every platform URL is downloadable, or guarantee that a free notebook session remains alive for a particular duration. Always test one short video before submitting a larger batch.
 

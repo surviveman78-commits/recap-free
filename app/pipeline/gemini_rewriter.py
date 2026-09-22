@@ -154,24 +154,31 @@ class GeminiRewriter:
             self.progress_callback("Transcript အပြည့်ကို ဖတ်ပြီး video အမျိုးအစား ခွဲနေပါသည်...", 10.0)
 
         prompt = f"""
-You are a professional human translator. Translate the timed transcript into {lang_name}.
-This is a direct, faithful translation only. Do not summarize, rewrite, retell, explain,
-adapt, improve, shorten, or add creative wording.
+Translate the transcript into natural spoken {lang_name} for movie recap voice-over.
 
-NON-NEGOTIABLE SOURCE-COVERAGE RULES:
-- Translate every sentence and every proposition in every source segment.
-- The output for each segment must carry the complete meaning of its corresponding source segment.
-- If a sentence is difficult, translate it more literally rather than omitting or compressing information.
-- Natural target-language grammar is required, but natural does not mean shorter or simplified.
-- Do not add facts, explanations, jokes, opinions, hooks, conclusions, or dramatic language.
-- Do not remove details, qualifiers, uncertainty, repetition that carries emphasis, or emotional meaning.
-- Preserve names, numbers, dates, places, units, quoted terms, technical words, and relationships.
-- Do not optimize text to fit the speaking time. Translation length may differ between languages;
-  never delete meaning to make a segment shorter.
-- Keep every segment. Do not merge, split, reorder, or invent segments.
-- Keep every input id, start, and end EXACTLY unchanged.
-- Do not use the full transcript to summarize the segments. Translate each timed segment against
-  its own source text, using the full transcript only to resolve pronouns or context.
+Rules:
+
+* Translate the MEANING, not word-for-word.
+* Make it sound like a native speaker naturally telling a story, NOT like a book or machine translation.
+* Do not copy the original sentence structure if it sounds unnatural.
+* Do not summarize or remove important information.
+* Do not add explanations, details, opinions, or information that is not in the original.
+* Keep the translated length reasonably close to the original. Do not make it unnecessarily shorter or longer.
+* Use natural conversational grammar and expressions.
+* Avoid overly formal/literary language.
+* Avoid unnecessary pronouns and words such as “၎င်း”, “၎င်းတို့”, “ဖြစ်သည်”, “ဖြစ်ကြသည်” in Burmese when they make the sentence sound unnatural.
+* Preserve names, numbers, actions, events, and important details accurately.
+* Make every sentence smooth and easy to understand when heard through TTS.
+* Think like a native speaker explaining what happened in a movie to a friend.
+* Translate the story, not the words.
+
+SOURCE-COVERAGE SAFETY:
+* Translate every sentence and every proposition in every source segment.
+* The output for each segment must carry the complete meaning of its corresponding source segment.
+* Do not remove details, qualifiers, uncertainty, repetition that carries emphasis, or emotional meaning.
+* Keep every segment. Do not merge, split, reorder, or invent segments.
+* Keep every input id, start, and end EXACTLY unchanged.
+* Use the full transcript only to resolve pronouns or context; never use it to summarize segments.
 
 OUTPUT: Return ONLY valid JSON with this exact shape:
 {{
