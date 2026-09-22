@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable, Tuple
 
@@ -29,6 +30,17 @@ class GeminiRewriter:
 
     DEFAULT_MODEL = "gemini-flash-latest"
     FALLBACK_MODEL = "gemini-3.8-flash"
+    FALLBACK_MODELS = [
+        "gemini-flash-latest",
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+    ]
 
     def __init__(self, api_key: str, progress_callback: Optional[Callable[[str, float], None]] = None):
         if not api_key:
@@ -82,20 +94,45 @@ class GeminiRewriter:
     def _generate(self, prompt: str, model_candidates: List[str]) -> str:
         last_err = None
         for candidate in dict.fromkeys(model_candidates):
-            try:
-                response = self.client.models.generate_content(
-                    model=candidate,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.15,
-                        response_mime_type="application/json",
-                    ),
-                )
-                if response.text:
-                    return response.text
-            except Exception as exc:
-                last_err = exc
+            for attempt in range(1, 4):
+                try:
+                    response = self.client.models.generate_content(
+                        model=candidate,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=0.15,
+                            response_mime_type="application/json",
+                        ),
+                    )
+                    if response.text:
+                        return response.text
+                    last_err = RuntimeError(f"{candidate} returned an empty response")
+                    break
+                except Exception as exc:
+                    last_err = exc
+                    error_text = str(exc).lower()
+                    transient = any(code in error_text for code in ("503", "429", "500", "temporarily unavailable", "overloaded"))
+                    if transient and attempt < 3:
+                        time.sleep(2 * attempt)
+                        continue
+                    break
         raise RuntimeError(f"Gemini API processing failed: {last_err}")
+
+    def _available_model_candidates(self) -> List[str]:
+        """Add generate-capable Gemini models exposed by the current API key."""
+        candidates = list(self.FALLBACK_MODELS)
+        try:
+            for item in self.client.models.list():
+                name = getattr(item, "name", "") or ""
+                actions = getattr(item, "supported_actions", None) or []
+                if name.startswith("models/"):
+                    name = name[7:]
+                if name.startswith("gemini") and (not actions or "generateContent" in actions):
+                    candidates.append(name)
+        except Exception:
+            # Model listing is optional; the fixed list still provides fallback.
+            pass
+        return list(dict.fromkeys(candidates))
 
     def process(
         self,
@@ -156,9 +193,8 @@ SOURCE TIMED SEGMENTS:
 
         if self.progress_callback:
             self.progress_callback("Context-aware ဘာသာပြန်နေပါသည်... (meaning ကို ထိန်းထားပါသည်)", 35.0)
-        # Deliberately ignore legacy caller defaults: v10 always tries the requested
-        # latest Flash model first, then the explicit fallback model.
-        model_order = [self.DEFAULT_MODEL, self.FALLBACK_MODEL]
+        # Try all known Flash fallbacks, then models exposed by this API key.
+        model_order = self._available_model_candidates()
         response_text = self._generate(prompt, model_order)
         try:
             parsed = self._extract_json(response_text)
