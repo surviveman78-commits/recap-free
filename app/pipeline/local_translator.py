@@ -24,16 +24,13 @@ class LocalNLLBTranslator:
 
     @staticmethod
     def _language_token_id(tokenizer: Any, language_code: str) -> Optional[int]:
-        """Resolve an NLLB language token across old and new Transformers APIs.
+        """Resolve an NLLB language token using only public tokenizer APIs.
 
-        Older NLLB tokenizers expose ``lang_code_to_id`` directly.  Newer
-        fast-tokenizer builds delegate to ``tokenizers.Tokenizer`` and expose
-        only the normal vocabulary/convert_tokens_to_ids methods.
+        This deliberately avoids the version-specific language-map attribute;
+        some installed fast-tokenizer builds raise while trying to access it.
+        ``get_vocab`` and ``convert_tokens_to_ids`` work for both tokenizer
+        generations.
         """
-        legacy_map = getattr(tokenizer, "lang_code_to_id", None)
-        if legacy_map is not None and language_code in legacy_map:
-            return int(legacy_map[language_code])
-
         try:
             vocab = tokenizer.get_vocab()
             if language_code not in vocab:
