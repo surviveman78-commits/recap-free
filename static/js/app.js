@@ -410,10 +410,16 @@ uploadRefAudioBtn.addEventListener("click", () => voxcpmAudioFile.click());
 voxcpmAudioFile.addEventListener("change", async () => {
   const file = voxcpmAudioFile.files[0];
   if (!file) return;
+  const refText = voxcpmRefText.value.trim();
+  if (!refText) {
+    showToast("အသံဖိုင်ထဲက ပြောထားတဲ့ Reference Text ကို အရင်ထည့်ပါ။", "error");
+    voxcpmRefText.focus();
+    voxcpmAudioFile.value = "";
+    return;
+  }
   const formData = new FormData();
   formData.append("file", file);
-  const refText = voxcpmRefText.value.trim();
-  if (refText) formData.append("reference_text", refText);
+  formData.append("reference_text", refText);
   uploadRefAudioBtn.innerText = "⏳ Uploading...";
   try {
     const res = await fetch("/api/voices/upload-reference", { method: "POST", body: formData });

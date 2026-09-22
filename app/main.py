@@ -200,6 +200,8 @@ async def upload_reference_audio(
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename required.")
+    if not reference_text or not reference_text.strip():
+        raise HTTPException(status_code=400, detail="Reference Text ထည့်ပြီးမှ audio တင်ပါ။ အသံဖိုင်ထဲက ပြောထားသော စာသားကို တိတိကျကျ ထည့်ပါ။")
 
     ext = Path(file.filename).suffix.lower()
     # Browser and Kaggle uploads commonly use AAC/Opus/WebM containers.

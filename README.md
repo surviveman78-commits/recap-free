@@ -73,7 +73,7 @@ v9 scheduler တွင် Edge TTS job အများဆုံး **၅ ခု 
 
 VoxCPM2 သည် local voice generation နှင့် voice cloning အတွက်သုံးနိုင်သော model ဖြစ်သည်။ Reference audio နှင့် reference text ပေးပါက voice style ကို အသုံးပြုရန် ကြိုးစားနိုင်သည်။ Kaggle တွင် model ကိုပထမဆုံး download လုပ်ပြီး local directory မှ load လုပ်နိုင်သည်။
 
-VoxCPM2 တွင် reference audio ကို `prompt_wav_path` နှင့် `prompt_text` အဖြစ်တစ်ပြိုင်နက်သုံးလျှင် continuation-style conditioning ဖြစ်ပြီး reference စာသားမတိကျပါက စာကြောင်းအစ/အဆုံးတွင် reference စကားလုံးတိုများ ထပ်အော်နိုင်သည်။ ထို့ကြောင့် default သည် `reference_wav_path` ဖြင့် အသံအရောင် (timbre) ကိုသာ clone လုပ်သည်။ Exact reference transcript သေချာမှသာ `RECAP_VOXCPM_HIFI=1` ဖြင့် hi-fi prompt mode ကို ဖွင့်ပါ။ `retry_badcase=True`၊ lower CFG နှင့် output silence trimming ကိုလည်း အသုံးပြုထားသည်။
+VoxCPM2 တွင် တင်ထားသော reference audio နှင့် ထိုအသံဖိုင်ထဲက ပြောထားသော `Reference Text` ကို တိတိကျကျတွဲပေးရသည်။ ဒီနည်းသည် uploaded speaker ၏ အသံအရောင်နှင့် ပြောပုံကို ပိုနီးစပ်စေသည်။ Reference text မပါဘဲ audio upload လုပ်ခွင့်မပြုပါ။ `retry_badcase=True`၊ lower CFG နှင့် output silence trimming ကိုလည်း အသုံးပြုထားသည်။
 
 v9 တွင် VoxCPM2 job တစ်ခုချင်းစီကို Python spawned process သီးခြားဖြင့် run ရန် ပြင်ထားသည်။ T4 နှစ်လုံးရှိပါက scheduler က `cuda:0` နှင့် `cuda:1` ကို ခွဲပေးရန် ကြိုးစားသည်။ VoxCPM2 model size နှင့် runtime memory သည် version အလိုက်ကွာနိုင်သောကြောင့် T4 15 GB တစ်လုံးစီတွင် model နှစ်လုံး load/generate အောင်မြင်ကြောင်း Kaggle session ထဲတွင် စမ်းပြီးမှ production workload သတ်မှတ်သင့်သည်။ OOM ဖြစ်လျှင် VoxCPM2 concurrency ကို ၁ သို့လျှော့ပါ။
 

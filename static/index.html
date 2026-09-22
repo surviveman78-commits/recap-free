@@ -447,9 +447,9 @@
           <!-- VoxCPM2 Settings Block -->
           <div id="voxcpmSettingsBlock" style="display: none;">
             <div class="bv-setting-field">
-              <label class="bv-input-label">Voice Reference Audio (WAV, MP3, FLAC)</label>
+              <label class="bv-input-label">Voice Reference Audio + Reference Text</label>
               <div class="bv-ref-upload-row">
-                <input type="file" id="voxcpmAudioFile" accept=".wav,.mp3,.m4a,.flac,.ogg" style="display: none;">
+                <input type="file" id="voxcpmAudioFile" accept=".wav,.mp3,.m4a,.flac,.ogg,.opus,.aac,.webm" style="display: none;">
                 <button type="button" id="uploadRefAudioBtn" class="bv-secondary-3d-btn">
                   📁 Upload Audio
                 </button>
@@ -458,12 +458,12 @@
             </div>
 
             <div class="bv-setting-field">
-              <label for="voxcpmRefText" class="bv-input-label">နမူနာအသံ၏ စာသား (Reference Text)</label>
+              <label for="voxcpmRefText" class="bv-input-label">နမူနာအသံ၏ စာသား (Reference Text) — မဖြစ်မနေထည့်ရန်</label>
               <textarea 
                 id="voxcpmRefText" 
                 class="bv-textarea-field" 
                 rows="2" 
-                placeholder="အသံဖိုင်ထဲတွင် ပါဝင်သော စကားလုံးစာသားများကို ထည့်သွင်းပါ..."
+                placeholder="Audio ထဲမှာ ပြောထားတဲ့ စာသားကို တိတိကျကျထည့်ပါ (မဖြစ်မနေ)..."
               ></textarea>
             </div>
           </div>

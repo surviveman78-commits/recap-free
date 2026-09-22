@@ -135,7 +135,7 @@ class TTSEngine:
         custom_dir = Path(__file__).resolve().parent.parent.parent / "data" / "custom_voices"
         if custom_dir.exists():
             for f in sorted(custom_dir.glob("*.*")):
-                if f.suffix.lower() in ('.wav', '.mp3', '.m4a', '.flac', '.ogg'):
+                if f.suffix.lower() in ('.wav', '.mp3', '.m4a', '.flac', '.ogg', '.opus', '.aac', '.webm'):
                     voices.append({
                         "id": f.name,
                         "name": f"Uploaded: {f.name}",
@@ -215,11 +215,10 @@ class TTSEngine:
         clean_ref = self._prepare_reference_audio(voice_path) if voice_path else None
         if clean_ref:
             generate_kwargs["reference_wav_path"] = clean_ref
-            # Do not use prompt_wav_path/prompt_text by default. That is a
-            # continuation-style mode and mismatched reference text can make
-            # VoxCPM repeat a short phrase at the beginning or end. Enable
-            # hi-fi prompt conditioning only when the transcript is exact.
-            if os.getenv("RECAP_VOXCPM_HIFI", "0") == "1" and reference_text and reference_text.strip():
+            # Use the uploaded sample together with its exact transcript so
+            # VoxCPM follows the submitted speaker more closely. The UI/API
+            # require this text before a reference audio can be saved.
+            if reference_text and reference_text.strip() and os.getenv("RECAP_VOXCPM_HIFI", "1") == "1":
                 generate_kwargs["prompt_wav_path"] = clean_ref
                 generate_kwargs["prompt_text"] = reference_text.strip()
 
