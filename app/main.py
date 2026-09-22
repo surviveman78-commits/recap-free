@@ -202,14 +202,26 @@ async def upload_reference_audio(
         raise HTTPException(status_code=400, detail="Filename required.")
 
     ext = Path(file.filename).suffix.lower()
-    allowed = ('.wav', '.mp3', '.m4a', '.flac', '.ogg')
+    # Browser and Kaggle uploads commonly use AAC/Opus/WebM containers.
+    allowed = ('.wav', '.mp3', '.m4a', '.flac', '.ogg', '.opus', '.aac', '.webm')
     if ext not in allowed:
-        raise HTTPException(status_code=400, detail=f"Unsupported format {ext}. Allowed: WAV, MP3, M4A, FLAC, OGG.")
+        raise HTTPException(status_code=400, detail=f"Unsupported audio format '{ext or '(none)'}'. Allowed: WAV, MP3, M4A, FLAC, OGG, OPUS, AAC, WEBM.")
 
     safe_name = f"ref_{uuid.uuid4().hex[:6]}_{Path(file.filename).name.replace(' ', '_')}"
     dest = CUSTOM_VOICES_DIR / safe_name
-    with open(dest, "wb") as f:
-        f.write(await file.read())
+    try:
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="The selected audio file is empty.")
+        if len(contents) > 200 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Reference audio is too large. Maximum size is 200 MB.")
+        CUSTOM_VOICES_DIR.mkdir(parents=True, exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(contents)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not save reference audio: {exc}") from exc
 
     save_dict = {
         "voxcpm_voice_name": file.filename,

@@ -417,11 +417,17 @@ voxcpmAudioFile.addEventListener("change", async () => {
   uploadRefAudioBtn.innerText = "⏳ Uploading...";
   try {
     const res = await fetch("/api/voices/upload-reference", { method: "POST", body: formData });
-    if (!res.ok) throw new Error("Reference audio upload failed");
-    const data = await res.json();
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.detail || payload.message || `HTTP ${res.status}`);
+    }
+    const data = payload;
     currentRefAudioName.innerText = data.filename;
     showToast("Voice reference audio အောင်မြင်စွာ တင်ပြီးပါပြီ!", "success");
-  } catch (err) { showToast(`Upload failed: ${err.message}`, "error"); }
+  } catch (err) {
+    showToast(`Upload failed: ${err.message || "Network error"}`, "error");
+    console.error("Reference audio upload failed", err);
+  }
   finally { uploadRefAudioBtn.innerText = "📁 Upload Audio"; }
 });
 
