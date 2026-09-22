@@ -17,7 +17,22 @@ from app.config import settings_manager, DATA_DIR, CUSTOM_VOICES_DIR, CUSTOM_FON
 from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available, get_encoder_hardware_desc
-from app.queue_manager import job_queue_manager
+from app.queue_manager import job_queue_manager, EDGE_MAX_CONCURRENT, VOXCPM_MAX_CONCURRENT
+
+
+def _font_family_from_file(font_path: Path) -> str:
+    """Read the real family name; filename stems are not valid ASS font names."""
+    try:
+        import subprocess
+        family = subprocess.check_output(
+            ["fc-scan", "--format=%{family}", str(font_path)],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip().split(",")[0].strip()
+        if family:
+            return family
+    except Exception:
+        pass
+    return font_path.stem
 
 app = FastAPI(
     title="AI Video Recap Studio",
@@ -95,9 +110,9 @@ async def get_fonts():
     if CUSTOM_FONTS_DIR.exists():
         for f in sorted(CUSTOM_FONTS_DIR.iterdir()):
             if f.suffix.lower() in ('.ttf', '.otf'):
-                # Font family name or filename stem
-                if f.stem not in fonts_list:
-                    fonts_list.append(f.stem)
+                family = _font_family_from_file(f)
+                if family not in fonts_list:
+                    fonts_list.append(family)
 
     # 2. System fonts
     preferred = [
@@ -138,8 +153,15 @@ async def upload_custom_font(file: UploadFile = File(...)):
     with open(dest, "wb") as f:
         f.write(await file.read())
 
-    # Set as active font
-    font_name = Path(safe_filename).stem
+    # Use the font's internal family name, not its filename stem. ASS/libass
+    # resolves the family name from the font tables.
+    font_name = _font_family_from_file(dest)
+    try:
+        import subprocess
+        subprocess.run(["fc-cache", "-f", str(CUSTOM_FONTS_DIR)], check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
     settings_manager.save({
         "font_style": font_name,
         "custom_font_name": file.filename,
@@ -266,9 +288,9 @@ async def get_queue_info():
         "queued_count": len(queued_ids),
         "queued_job_ids": queued_ids,
         "edge_running": job_queue_manager.active_counts["edge_tts"],
-        "edge_limit": 5,
+        "edge_limit": EDGE_MAX_CONCURRENT,
         "voxcpm_running": job_queue_manager.active_counts["voxcpm2"],
-        "voxcpm_limit": 2,
+        "voxcpm_limit": VOXCPM_MAX_CONCURRENT,
     }
 
 

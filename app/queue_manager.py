@@ -14,8 +14,8 @@ from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 JOBS_DIR = DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
-EDGE_MAX_CONCURRENT = 5
-VOXCPM_MAX_CONCURRENT = 2
+EDGE_MAX_CONCURRENT = 3
+VOXCPM_MAX_CONCURRENT = 1
 
 
 class JobQueueManager:

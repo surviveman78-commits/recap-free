@@ -5,7 +5,7 @@ import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable
 
-from app.config import CUSTOM_FONTS_DIR
+from app.config import CUSTOM_FONTS_DIR, settings_manager
 from app.pipeline.gpu_utils import get_video_encoder_args, get_active_encoder_name
 
 
@@ -69,6 +69,36 @@ class SubtitleBurner:
     def __init__(self, progress_callback: Optional[Callable[[str, float], None]] = None):
         self.progress_callback = progress_callback
 
+    @staticmethod
+    def _font_family_from_file(font_path: Path) -> str:
+        try:
+            family = subprocess.check_output(
+                ["fc-scan", "--format=%{family}", str(font_path)],
+                text=True, stderr=subprocess.DEVNULL,
+            ).strip().split(",")[0].strip()
+            if family:
+                return family
+        except Exception:
+            pass
+        return font_path.stem
+
+    def _resolve_font(self, requested: str) -> (str, Optional[Path]):
+        """Return the exact ASS family and custom file selected by the user."""
+        requested = (requested or "Noto Sans Myanmar").strip()
+        custom_path = Path(str(settings_manager.get("custom_font_path", "")))
+        candidates = [custom_path] if custom_path.exists() else []
+        if CUSTOM_FONTS_DIR.exists():
+            candidates += sorted(CUSTOM_FONTS_DIR.glob("*.ttf"))
+            candidates += sorted(CUSTOM_FONTS_DIR.glob("*.otf"))
+        for font_path in candidates:
+            family = self._font_family_from_file(font_path)
+            if (family.casefold() == requested.casefold()
+                    or font_path.stem.casefold() == requested.casefold()):
+                return family, font_path
+        if requested.casefold() in {"myanmar text", "myanmartext"}:
+            requested = "Noto Sans Myanmar"
+        return requested, None
+
     def _get_video_dimensions(self, video_path: Path) -> (int, int):
         try:
             cmd = [
@@ -113,9 +143,7 @@ class SubtitleBurner:
         outline_size = max(2, int(scaled_font_size * 0.12))
 
         ass_color = hex_to_ass_color(font_color)
-        safe_font = font_style or "Noto Sans Myanmar"
-        if safe_font.strip().lower() in {"myanmar text", "myanmartext"}:
-            safe_font = "Noto Sans Myanmar"
+        safe_font, _ = self._resolve_font(font_style)
 
         # ASS header
         ass_header = f"""[Script Info]
@@ -207,11 +235,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # Resolve the selected font explicitly; this avoids missing-font fallback on Kaggle.
         fonts_dir_arg = ""
-        safe_font = font_style or "Noto Sans Myanmar"
-        if safe_font.strip().lower() in {"myanmar text", "myanmartext"}:
-            safe_font = "Noto Sans Myanmar"
+        safe_font, selected_font_path = self._resolve_font(font_style)
         try:
-            match_font = "Noto Sans Myanmar:style=Regular" if "myanmar" in safe_font.lower() else safe_font
+            match_font = safe_font
             font_file = subprocess.check_output(
                 ["fc-match", "-f", "%{file}", match_font],
                 text=True,
@@ -222,11 +248,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         except Exception:
             pass
 
-        # Check custom fonts directory
-        if CUSTOM_FONTS_DIR.exists() and any(CUSTOM_FONTS_DIR.iterdir()):
+        # Always expose the custom directory when a custom font is selected;
+        # otherwise a system fc-match result can silently win.
+        if selected_font_path and CUSTOM_FONTS_DIR.exists():
             # Escape for FFmpeg filter on Windows
             clean_fonts_dir = str(CUSTOM_FONTS_DIR).replace('\\', '/').replace(':', '\\:')
-            fonts_dir_arg = fonts_dir_arg or f":fontsdir='{clean_fonts_dir}'"
+            fonts_dir_arg = f":fontsdir='{clean_fonts_dir}'"
 
         sub_filter = f"subtitles='{sub_rel}'{fonts_dir_arg}"
 

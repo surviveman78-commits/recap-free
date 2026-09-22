@@ -67,7 +67,7 @@ Subtitle display တွင် စာကြောင်းရှည်လျှ�
 
 Edge TTS သည် local GPU model မလိုသော network-based neural speech service ဖြစ်သည်။ Kaggle တွင် model အကြီးစား download မလုပ်ရသောကြောင့် စတင်စမ်းသပ်ရန် အလွယ်ဆုံး engine ဖြစ်သည်။ မြန်မာအသံများအတွက် `my-MM-NilarNeural` နှင့် `my-MM-ThihaNeural` ကို UI မှ ရွေးနိုင်သည်။
 
-v9 scheduler တွင် Edge TTS job အများဆုံး **၅ ခု တစ်ပြိုင်တည်း** run ရန် slot pool ထားသည်။ လက်တွေ့ throughput သည် CPU၊ RAM၊ FFmpeg၊ network နှင့် Groq/Gemini rate limit များပေါ်မူတည်သည်။
+v9 scheduler တွင် Edge TTS job အများဆုံး **၃ ခု တစ်ပြိုင်တည်း** run ရန် slot pool ထားသည်။ လက်တွေ့ throughput သည် CPU၊ RAM၊ FFmpeg၊ network နှင့် Groq/Gemini rate limit များပေါ်မူတည်သည်။
 
 ### VoxCPM2
 
@@ -75,7 +75,7 @@ VoxCPM2 သည် local voice generation နှင့် voice cloning အတွ
 
 VoxCPM2 တွင် တင်ထားသော reference audio နှင့် ထိုအသံဖိုင်ထဲက ပြောထားသော `Reference Text` ကို တိတိကျကျတွဲပေးရသည်။ ဒီနည်းသည် uploaded speaker ၏ အသံအရောင်နှင့် ပြောပုံကို ပိုနီးစပ်စေသည်။ Reference text မပါဘဲ audio upload လုပ်ခွင့်မပြုပါ။ `retry_badcase=True`၊ lower CFG နှင့် output silence trimming ကိုလည်း အသုံးပြုထားသည်။
 
-v9 တွင် VoxCPM2 job တစ်ခုချင်းစီကို Python spawned process သီးခြားဖြင့် run ရန် ပြင်ထားသည်။ T4 နှစ်လုံးရှိပါက scheduler က `cuda:0` နှင့် `cuda:1` ကို ခွဲပေးရန် ကြိုးစားသည်။ VoxCPM2 model size နှင့် runtime memory သည် version အလိုက်ကွာနိုင်သောကြောင့် T4 15 GB တစ်လုံးစီတွင် model နှစ်လုံး load/generate အောင်မြင်ကြောင်း Kaggle session ထဲတွင် စမ်းပြီးမှ production workload သတ်မှတ်သင့်သည်။ OOM ဖြစ်လျှင် VoxCPM2 concurrency ကို ၁ သို့လျှော့ပါ။
+VoxCPM2 job များကို Python spawned process သီးခြားဖြင့် run ရန် ပြင်ထားသည်။ T4 memory နှင့် voice consistency ကြောင့် ယခု production limit သည် **၁ job တစ်ပြိုင်တည်း** ဖြစ်ပြီး queue ထဲမှ နောက် job ကို အရင် job ပြီးမှ စသည်။
 
 ## v9 Concurrent jobs
 
@@ -83,8 +83,8 @@ Job တင်လိုက်သည်နှင့် လွတ်နေသော
 
 | Engine | v9 maximum concurrent jobs | Hardware note |
 |---|---:|---|
-| Edge TTS | 5 | GPU မလိုပါ။ CPU, RAM, network နှင့် API limit ကို စောင့်ကြည့်ပါ။ |
-| VoxCPM2 | 2 | `cuda:0` နှင့် `cuda:1` ခွဲရန် ကြိုးစားသည်။ VRAM မလောက်ပါက ၁ သို့လျှော့ပါ။ |
+| Edge TTS | 3 | GPU မလိုပါ။ CPU, RAM, network နှင့် API limit ကို စောင့်ကြည့်ပါ။ |
+| VoxCPM2 | 1 | GPU တစ်လုံးကို အသုံးပြု၍ queue အတိုင်း တစ်ပုဒ်စီ run သည်။ |
 
 ## Kaggle အသုံးပြုနည်း
 

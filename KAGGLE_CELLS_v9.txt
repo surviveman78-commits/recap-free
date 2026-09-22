@@ -2,8 +2,8 @@ RECAP FREE — KAGGLE RUN CELLS v11 LOCAL AI
 =================================
 
 v9 concurrency:
-- Edge TTS: အများဆုံး ၅ ပုဒ် တစ်ပြိုင်တည်း
-- VoxCPM2: အများဆုံး ၂ ပုဒ် တစ်ပြိုင်တည်း; cuda:0/cuda:1 ခွဲပေးမည်
+- Edge TTS: အများဆုံး ၃ ပုဒ် တစ်ပြိုင်တည်း
+- VoxCPM2: အများဆုံး ၁ ပုဒ် တစ်ပြိုင်တည်း; GPU တစ်လုံးကိုသာ အသုံးပြုမည်
 - Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
 - Job တင်ချိန်မှာရွေးထားတဲ့ Voice Engine ကို snapshot သိမ်းမည်
 - Local AI: faster-whisper + NLLB-200 ကို cell ကနေ ကြို download လုပ်မည်
@@ -72,14 +72,14 @@ Cell 4 ကို running ထားပါ။ Output ထဲက trycloudflare URL �
 UI အသုံးပြုရန်
 --------------
 1. Settings ထဲမှာ AI Mode ကို **Local AI** ထားပါ။ Local mode မှာ API key မလိုပါ။
-2. Voice Engine ကို Edge TTS ထားပြီး video ၅ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
-3. Voice Engine ကို VoxCPM2 ထားပြီး video ၂ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
+2. Voice Engine ကို Edge TTS ထားပြီး video ၃ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
+3. Voice Engine ကို VoxCPM2 ထားပြီး video ၁ ပုဒ်ကိုသာ တစ်ချိန်တည်းလုပ်ပါမည်။
 4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
 5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
 6. Font ကို Noto Sans Myanmar သို့မဟုတ် Padauk ရွေးပါ။
 7. Cloud AI သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Groq/Gemini key ထည့်ပါ။
 
-UI မှာ Edge TTS ၅ jobs နဲ့ VoxCPM2 ၂ jobs ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
+UI မှာ Edge TTS ၃ jobs နဲ့ VoxCPM2 ၁ job ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
 
 
 OPTIONAL PRECHECK — T4 နှစ်လုံးစစ်ရန်
