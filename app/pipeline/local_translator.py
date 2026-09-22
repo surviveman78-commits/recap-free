@@ -22,6 +22,31 @@ class LocalNLLBTranslator:
     def __init__(self, progress_callback: Optional[Callable[[str, float], None]] = None):
         self.progress_callback = progress_callback
 
+    @staticmethod
+    def _language_token_id(tokenizer: Any, language_code: str) -> Optional[int]:
+        """Resolve an NLLB language token across old and new Transformers APIs.
+
+        Older NLLB tokenizers expose ``lang_code_to_id`` directly.  Newer
+        fast-tokenizer builds delegate to ``tokenizers.Tokenizer`` and expose
+        only the normal vocabulary/convert_tokens_to_ids methods.
+        """
+        legacy_map = getattr(tokenizer, "lang_code_to_id", None)
+        if legacy_map is not None and language_code in legacy_map:
+            return int(legacy_map[language_code])
+
+        try:
+            vocab = tokenizer.get_vocab()
+            if language_code not in vocab:
+                return None
+            token_id = tokenizer.convert_tokens_to_ids(language_code)
+            if token_id is None:
+                return None
+            if isinstance(token_id, list):
+                token_id = token_id[0] if token_id else None
+            return int(token_id) if token_id is not None else None
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return None
+
     def _load(self):
         from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
         import torch
@@ -57,9 +82,16 @@ class LocalNLLBTranslator:
         tokenizer, model = self._load()
         source_code = groq_result.get("language", "eng")
         source_code = {"en": "eng_Latn", "my": "mya_Mymr", "zh": "zho_Hans", "ja": "jpn_Jpan"}.get(source_code, source_code)
-        if source_code not in tokenizer.lang_code_to_id:
+        source_id = self._language_token_id(tokenizer, source_code)
+        if source_id is None:
             source_code = "eng_Latn"
+            source_id = self._language_token_id(tokenizer, source_code)
+        if source_id is None:
+            raise RuntimeError("NLLB tokenizer has no usable source language tokens. Re-download the NLLB tokenizer/model pair.")
         tokenizer.src_lang = source_code
+        target_id = self._language_token_id(tokenizer, target_code)
+        if target_id is None:
+            raise RuntimeError(f"NLLB tokenizer has no target language token: {target_code}. Re-download the NLLB tokenizer/model pair.")
 
         translated: List[Dict[str, Any]] = []
         batch_size = int(os.getenv("RECAP_TRANSLATION_BATCH", "4"))
@@ -75,7 +107,7 @@ class LocalNLLBTranslator:
             with torch.inference_mode():
                 output = model.generate(
                     **encoded,
-                    forced_bos_token_id=tokenizer.lang_code_to_id[target_code],
+                    forced_bos_token_id=target_id,
                     max_length=512,
                     num_beams=4,
                     do_sample=False,
