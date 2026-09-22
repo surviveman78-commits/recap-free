@@ -25,7 +25,10 @@ TARGET_LANGUAGE_NAMES = {
 
 
 class GeminiRewriter:
-    """Context-aware but meaning-preserving translation for timed subtitle segments."""
+    """Faithful, natural translation for timed subtitle segments."""
+
+    DEFAULT_MODEL = "gemini-flash-latest"
+    FALLBACK_MODEL = "gemini-3.8-flash"
 
     def __init__(self, api_key: str, progress_callback: Optional[Callable[[str, float], None]] = None):
         if not api_key:
@@ -100,7 +103,7 @@ class GeminiRewriter:
         output_dir: Path,
         mode: str = "translate",
         target_language: str = "my",
-        model_name: str = "gemini-2.5-flash",
+        model_name: str = DEFAULT_MODEL,
     ) -> Dict[str, Any]:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -114,23 +117,24 @@ class GeminiRewriter:
             self.progress_callback("Transcript အပြည့်ကို ဖတ်ပြီး video အမျိုးအစား ခွဲနေပါသည်...", 10.0)
 
         prompt = f"""
-You are a conservative professional subtitle translator and video editor.
-Translate the timed transcript into {lang_name}. This is NOT a creative rewrite.
+You are a professional human translator. Translate the timed transcript into {lang_name}.
+This is a direct, faithful translation only. Do not summarize, rewrite, retell, explain,
+adapt, improve, shorten, or add creative wording.
 
-FIRST, classify the transcript internally as one of: entertainment, educational,
-emotional_story, news_documentary, or conversation. Use that classification only
-to choose a natural tone. Then translate every segment.
-
-NON-NEGOTIABLE MEANING SAFETY RULES:
-- Preserve the original meaning, facts, order of events, and speaker intent.
-- Do not add facts, explanations, jokes, opinions, hooks, or dramatic language that are not present.
-- Do not remove information, soften claims, exaggerate emotion, or summarise.
-- Preserve names, numbers, dates, places, units, quoted terms, and technical words.
-- Translate naturally for a native {lang_name} viewer; do not translate word-for-word when that sounds unnatural.
-- Keep the result close in information density to the source. Never make a segment materially longer than its speaking time.
+NON-NEGOTIABLE SOURCE-COVERAGE RULES:
+- Translate every sentence and every proposition in every source segment.
+- The output for each segment must carry the complete meaning of its corresponding source segment.
+- If a sentence is difficult, translate it more literally rather than omitting or compressing information.
+- Natural target-language grammar is required, but natural does not mean shorter or simplified.
+- Do not add facts, explanations, jokes, opinions, hooks, conclusions, or dramatic language.
+- Do not remove details, qualifiers, uncertainty, repetition that carries emphasis, or emotional meaning.
+- Preserve names, numbers, dates, places, units, quoted terms, technical words, and relationships.
+- Do not optimize text to fit the speaking time. Translation length may differ between languages;
+  never delete meaning to make a segment shorter.
 - Keep every segment. Do not merge, split, reorder, or invent segments.
 - Keep every input id, start, and end EXACTLY unchanged.
-- Text must be suitable for spoken narration and subtitles. Use concise natural wording, but never shorten by deleting meaning.
+- Do not use the full transcript to summarize the segments. Translate each timed segment against
+  its own source text, using the full transcript only to resolve pronouns or context.
 
 OUTPUT: Return ONLY valid JSON with this exact shape:
 {{
@@ -152,7 +156,10 @@ SOURCE TIMED SEGMENTS:
 
         if self.progress_callback:
             self.progress_callback("Context-aware ဘာသာပြန်နေပါသည်... (meaning ကို ထိန်းထားပါသည်)", 35.0)
-        response_text = self._generate(prompt, [model_name, "gemini-2.5-flash", "gemini-2.0-flash"])
+        # Deliberately ignore legacy caller defaults: v10 always tries the requested
+        # latest Flash model first, then the explicit fallback model.
+        model_order = [self.DEFAULT_MODEL, self.FALLBACK_MODEL]
+        response_text = self._generate(prompt, model_order)
         try:
             parsed = self._extract_json(response_text)
             translated = parsed.get("segments", [])
@@ -172,7 +179,7 @@ SOURCE={json.dumps(source_segments, ensure_ascii=False)}
 BAD_RESULT={json.dumps(parsed, ensure_ascii=False)}
 VALIDATION_ERROR={reason}
 """
-            repaired = self._extract_json(self._generate(repair_prompt, [model_name, "gemini-2.5-flash"]))
+            repaired = self._extract_json(self._generate(repair_prompt, model_order))
             translated = repaired.get("segments", [])
             valid, reason = self._validate_segments(source_segments, translated)
             parsed = repaired
@@ -187,7 +194,8 @@ VALIDATION_ERROR={reason}
             "tone": parsed.get("tone", "natural and faithful"),
             "glossary": parsed.get("glossary", []),
             "source_segment_count": len(source_segments),
-            "meaning_policy": "controlled_natural_translation",
+            "meaning_policy": "faithful_natural_translation_no_summarization",
+            "model_order": model_order,
         }
 
         if self.progress_callback:

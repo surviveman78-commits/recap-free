@@ -49,7 +49,7 @@ Pipeline သည် အောက်ပါ အဆင့် ၈ ဆင့်ဖြ�
 
 ## ဘာသာပြန်အဓိပ္ပာယ်မပျက်အောင် ထိန်းထားပုံ
 
-Recap Free ၏ translation layer သည် “ပိုစိတ်ဝင်စားအောင် ပြန်ရေး” သည့် creative writer မဟုတ်ဘဲ **controlled natural translation** အဖြစ်လုပ်ထားသည်။ Model ကို အောက်ပါ စည်းမျဉ်းများချမှတ်ထားသည်။
+Recap Free ၏ translation layer သည် “ပိုစိတ်ဝင်စားအောင် ပြန်ရေး” သည့် creative writer မဟုတ်ဘဲ **မူရင်းကို သဘာဝကျကျ တိတိကျကျ ဘာသာပြန်ခြင်း** အဖြစ်လုပ်ထားသည်။ Gemini model request တွင် `gemini-flash-latest` ကို ပထမဆုံးသုံးပြီး request မအောင်မြင်ပါက `gemini-3.8-flash` သို့ fallback လုပ်သည်။ Model ကို အောက်ပါ စည်းမျဉ်းများချမှတ်ထားသည်။
 
 - မူရင်းအဓိပ္ပာယ်၊ ဖြစ်ရပ်အစီအစဉ်နှင့် speaker intent ကို မပြောင်းရ။
 - မူရင်းတွင် မပါသော fact၊ ရှင်းလင်းချက်၊ အမြင်၊ ဟာသ သို့မဟုတ် dramatic wording မထည့်ရ။
@@ -208,7 +208,7 @@ The project is intended for controlled personal and development use. It does not
 
 ## Project overview
 
-Recap Free is a web application for automated video dubbing, translation, and subtitle production. It accepts either a video URL or a local upload. The pipeline downloads or stages the source video, extracts its audio, requests a timestamped transcript from Groq Whisper, performs a conservative context-aware translation with Gemini, synthesizes narration with Edge TTS or VoxCPM2, mixes the generated audio into the source video, and renders ASS/SRT subtitles for the final output.
+Recap Free is a web application for automated video dubbing, translation, and subtitle production. It accepts either a video URL or a local upload. The pipeline downloads or stages the source video, extracts its audio, requests a timestamped transcript from Groq Whisper, performs a faithful natural translation with Gemini, synthesizes narration with Edge TTS or VoxCPM2, mixes the generated audio into the source video, and renders ASS/SRT subtitles for the final output. Gemini requests try `gemini-flash-latest` first and fall back to `gemini-3.8-flash` only when the first request fails.
 
 The translation layer is deliberately conservative. It is not a creative rewrite engine. The model first classifies the content so that it can choose a suitable tone, but it must preserve facts, order, speaker intent, names, numbers, dates, places, technical terms, and segment timestamps. The application validates the returned segment structure and keeps the original transcript separate from the processed transcript.
 
@@ -220,7 +220,7 @@ The eight visible stages are downloading, audio extraction, transcription, conte
 
 ## Controlled translation and QA
 
-The Gemini prompt uses a controlled-natural policy. It permits natural phrasing for the target language, but it prohibits unsupported additions, omissions, summarization, exaggeration, and creative embellishment. It also requires the same number of segments and the same `id`, `start`, and `end` values. If the response does not satisfy the structural contract, the application attempts a format repair and fails visibly if validation still does not pass.
+The Gemini prompt uses a faithful-natural policy. It permits natural phrasing for the target language, but it prohibits unsupported additions, omissions, summarization, compression, exaggeration, and creative embellishment. It explicitly requires every sentence and proposition in every source segment to be translated. It also requires the same number of segments and the same `id`, `start`, and `end` values. If the response does not satisfy the structural contract, the application attempts a format repair and fails visibly if validation still does not pass.
 
 Subtitle line wrapping is applied only to the rendered subtitle representation. It does not truncate the translated text used for speech synthesis. Unicode NFC normalization is applied before subtitle rendering so that Burmese combining marks are represented consistently.
 
@@ -267,7 +267,7 @@ A `trycloudflare.com` hostname is temporary. If its DNS record disappears, the o
 
 Recap Free 是一个用于视频配音、翻译和字幕制作的 Web 应用。用户可以输入视频链接，也可以上传本地视频。系统首先下载或准备源视频，然后使用 FFmpeg 提取音频，再通过 Groq Whisper API 生成带时间戳的转写结果。Gemini API 会读取完整转写内容，判断视频的内容类型和语气，并生成受约束的自然翻译。之后系统使用 Edge TTS 或 VoxCPM2 生成旁白，把旁白与原视频混合，并输出 ASS、SRT 和最终 MP4 文件。
 
-这个项目的翻译层不是自由改写器。它允许目标语言表达自然，但不允许添加源文本中没有的事实、意见、笑话或戏剧化内容。姓名、数字、日期、地点、技术术语、事件顺序以及每个字幕片段的时间戳都应该保持不变。原始转写和处理后的转写分别保存，方便比较和审查。
+这个项目的翻译层不是自由改写器。它要求对原文进行完整、自然而忠实的翻译，不允许摘要、压缩、添加源文本中没有的事实、意见、笑话或戏剧化内容。Gemini 请求首先使用 `gemini-flash-latest`，如果该请求失败，再使用 `gemini-3.8-flash`。姓名、数字、日期、地点、技术术语、事件顺序以及每个字幕片段的时间戳都应该保持不变。原始转写和处理后的转写分别保存，方便比较和审查。
 
 ## 工作流程
 
