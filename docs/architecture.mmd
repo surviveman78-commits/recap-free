@@ -1,0 +1,15 @@
+flowchart LR
+    A[Video URL or Upload] --> B[yt-dlp / Local File]
+    B --> C[FFmpeg Audio Extract]
+    C --> D[Groq Whisper STT]
+    D --> E[Gemini Context Analysis]
+    E --> F[Controlled Natural Translation]
+    F --> G{Voice Engine}
+    G -->|Edge TTS| H[Edge TTS Slot Pool: max 5]
+    G -->|VoxCPM2| I[VoxCPM Worker Process]
+    I --> J[CUDA 0 or CUDA 1]
+    H --> K[Continuous TTS WAV]
+    J --> K
+    K --> L[FFmpeg Audio Mix]
+    L --> M[ASS/SRT Subtitle Generation]
+    M --> N[Final MP4 + Transcript Files]

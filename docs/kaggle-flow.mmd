@@ -1,0 +1,14 @@
+flowchart TD
+    A[Create Kaggle Notebook] --> B[Attach recap-free Dataset]
+    B --> C[Enable Internet and GPU]
+    C --> D[Copy Project to /kaggle/working]
+    D --> E[Install FFmpeg, Fonts, Python Dependencies]
+    E --> F[Download VoxCPM2 Model if Needed]
+    F --> G[Start kaggle_foreground.py]
+    G --> H[FastAPI on localhost:8000]
+    G --> I[Cloudflare Quick Tunnel]
+    I --> J[Open Latest trycloudflare URL]
+    J --> K[Enter Groq/Gemini Keys in UI]
+    K --> L[Submit URL or Upload Video]
+    I -. tunnel drops .-> M[Recovery Cell]
+    M --> G
