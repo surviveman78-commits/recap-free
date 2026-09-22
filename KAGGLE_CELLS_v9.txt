@@ -1,4 +1,4 @@
-RECAP FREE — KAGGLE RUN CELLS v9
+RECAP FREE — KAGGLE RUN CELLS v11 LOCAL AI
 =================================
 
 v9 concurrency:
@@ -6,7 +6,8 @@ v9 concurrency:
 - VoxCPM2: အများဆုံး ၂ ပုဒ် တစ်ပြိုင်တည်း; cuda:0/cuda:1 ခွဲပေးမည်
 - Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
 - Job တင်ချိန်မှာရွေးထားတဲ့ Voice Engine ကို snapshot သိမ်းမည်
-- Cloud API Transcribe/Translate (Groq + Gemini) မပြောင်းပါ
+- Local AI: faster-whisper + NLLB-200 ကို cell ကနေ ကြို download လုပ်မည်
+- Cloud AI: Groq + Gemini ကို UI မှာရွေးလျှင်သာ သုံးမည်
 
 သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
 
@@ -33,18 +34,33 @@ CELL 2 — Install
 !apt-get install -y -qq ffmpeg fontconfig fonts-noto-core fonts-sil-padauk fonts-myanmar libsndfile1
 !fc-cache -f
 !pip install -q -r requirements-kaggle.txt
-import edge_tts, voxcpm
-print('Edge TTS READY; VoxCPM2 READY')
+import edge_tts, voxcpm, faster_whisper, transformers
+print('Edge TTS, VoxCPM2, Local Whisper, Local NLLB dependencies READY')
 
-CELL 3 — Download VoxCPM2 model
---------------------------------
+CELL 3 — Download all local models before UI
+----------------------------------------------
 %cd /kaggle/working/recap-free
 from huggingface_hub import snapshot_download
 import os
-model_dir = '/kaggle/working/models/VoxCPM2'
-snapshot_download(repo_id='openbmb/VoxCPM2', local_dir=model_dir)
-os.environ['VOXCPM_MODEL_ID'] = model_dir
-print('VoxCPM2 model files ready:', model_dir)
+models_root = '/kaggle/working/models'
+voxcpm_dir = f'{models_root}/VoxCPM2'
+whisper_dir = f'{models_root}/faster-whisper-large-v3'
+nllb_dir = f'{models_root}/nllb-200-distilled-1.3B'
+
+snapshot_download(repo_id='openbmb/VoxCPM2', local_dir=voxcpm_dir)
+snapshot_download(repo_id='Systran/faster-whisper-large-v3', local_dir=whisper_dir)
+snapshot_download(repo_id='facebook/nllb-200-distilled-1.3B', local_dir=nllb_dir)
+
+os.environ['VOXCPM_MODEL_ID'] = voxcpm_dir
+os.environ['RECAP_WHISPER_MODEL'] = whisper_dir
+os.environ['RECAP_NLLB_MODEL'] = nllb_dir
+os.environ['RECAP_LOCAL_ONLY'] = '1'
+os.environ['RECAP_WHISPER_DEVICE'] = 'cuda'
+os.environ['RECAP_WHISPER_DEVICE_INDEX'] = '0'
+os.environ['RECAP_NLLB_DEVICE'] = 'cuda:1'
+print('VoxCPM2 ready:', voxcpm_dir)
+print('Local Whisper ready:', whisper_dir)
+print('Local NLLB ready:', nllb_dir)
 
 CELL 4 — Start server
 ----------------------
@@ -55,12 +71,13 @@ Cell 4 ကို running ထားပါ။ Output ထဲက trycloudflare URL �
 
 UI အသုံးပြုရန်
 --------------
-1. Settings ထဲမှာ Groq/Gemini API key ထည့်ပြီး Save လုပ်ပါ။
+1. Settings ထဲမှာ AI Mode ကို **Local AI** ထားပါ။ Local mode မှာ API key မလိုပါ။
 2. Voice Engine ကို Edge TTS ထားပြီး video ၅ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
 3. Voice Engine ကို VoxCPM2 ထားပြီး video ၂ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
 4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
 5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
 6. Font ကို Noto Sans Myanmar သို့မဟုတ် Padauk ရွေးပါ။
+7. Cloud AI သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Groq/Gemini key ထည့်ပါ။
 
 UI မှာ Edge TTS ၅ jobs နဲ့ VoxCPM2 ၂ jobs ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
 

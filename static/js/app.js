@@ -75,6 +75,7 @@ const tabContents = document.querySelectorAll(".bv-tab-content, .tab-content");
 const groqApiKey = document.getElementById("groqApiKey");
 const geminiApiKey = document.getElementById("geminiApiKey");
 const settingsTargetLang = document.getElementById("settingsTargetLang");
+const aiMode = document.getElementById("aiMode");
 const voiceEngine = document.getElementById("voiceEngine");
 const edgeTtsSettingsBlock = document.getElementById("edgeTtsSettingsBlock");
 const voxcpmSettingsBlock = document.getElementById("voxcpmSettingsBlock");
@@ -385,6 +386,7 @@ async function loadSettings() {
     appSettings = await res.json();
     if (appSettings.groq_api_key) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
+    if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
     if (appSettings.voice_engine) { voiceEngine.value = appSettings.voice_engine; toggleVoiceEngine(appSettings.voice_engine); }
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
@@ -429,6 +431,7 @@ voxcpmAudioFile.addEventListener("change", async () => {
 settingsForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const payload = {
+    ai_mode: aiMode ? aiMode.value : "local",
     target_language: settingsTargetLang.value,
     voice_engine: voiceEngine.value,
     edge_tts_language: edgeLanguageSelect.value,
@@ -805,7 +808,7 @@ if (viewCurrentActiveBtn) {
 // Start Pipeline & Add to Queue
 // ──────────────────────────────────────────────
 startBtn.addEventListener("click", async () => {
-  if (!appSettings.has_groq_key || !appSettings.has_gemini_key) {
+  if ((appSettings.ai_mode || "local") === "cloud" && (!appSettings.has_groq_key || !appSettings.has_gemini_key)) {
     showToast("Groq နှင့် Gemini API Key များကို Settings တွင် အရင်ထည့်သွင်းပေးပါ။", "error");
     settingsModal.classList.add("active");
     return;

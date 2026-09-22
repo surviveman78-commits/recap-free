@@ -115,6 +115,7 @@ class JobQueueManager:
             "font_color": font_color or settings_manager.get("font_color", "#FFFFFF"),
             "font_size_px": font_size_px or int(settings_manager.get("font_size_px", 36)),
             "font_style": font_style or settings_manager.get("font_style", "Noto Sans Myanmar"),
+            "ai_mode": "local" if settings_manager.get("ai_mode", "local") == "local" else "cloud",
             "subtitle_pos_x": subtitle_pos_x if subtitle_pos_x is not None else float(settings_manager.get("subtitle_pos_x", 50.0)),
             "subtitle_pos_y": subtitle_pos_y if subtitle_pos_y is not None else float(settings_manager.get("subtitle_pos_y", 82.0)),
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
@@ -194,6 +195,7 @@ class JobQueueManager:
         result = orchestrator.run(
             video_url=job_data.get("video_url"), uploaded_video_path=uploaded_path,
             groq_api_key=settings_manager.get_groq_key(), gemini_api_key=settings_manager.get_gemini_key(),
+            ai_mode=job_data.get("ai_mode", "local"),
             voice_engine=job_data["voice_engine"],
             edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
             voxcpm_voice_path=settings_manager.get("voxcpm_voice_path", ""),

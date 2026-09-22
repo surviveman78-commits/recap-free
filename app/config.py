@@ -20,6 +20,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "target_language": "my",
     "target_language_name": "Burmese (မြန်မာဘာသာ)",
     "gemini_prompt_mode": "translate",
+    "ai_mode": "local",
     "voice_engine": "edge_tts",
     "edge_tts_language": "my-MM",
     "edge_tts_voice": "my-MM-NilarNeural",

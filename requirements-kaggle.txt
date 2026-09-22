@@ -2,5 +2,10 @@
 -r requirements.txt
 yt-dlp>=2025.01.15
 voxcpm>=0.1.0
+faster-whisper>=1.1.0
+transformers>=4.45.0
+sentencepiece>=0.2.0
+safetensors>=0.4.5
+huggingface_hub>=0.26.0
 
-# Both Edge TTS and VoxCPM2 are installed. Choose the engine from the UI.
+# Edge TTS, VoxCPM2, Local Whisper, and Local NLLB are installed. Choose AI/voice engines in the UI.

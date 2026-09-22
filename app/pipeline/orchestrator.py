@@ -11,6 +11,8 @@ from app.pipeline.downloader import VideoDownloader
 from app.pipeline.audio_extractor import AudioExtractor
 from app.pipeline.groq_transcriber import GroqTranscriber
 from app.pipeline.gemini_rewriter import GeminiRewriter
+from app.pipeline.local_transcriber import LocalWhisperTranscriber
+from app.pipeline.local_translator import LocalNLLBTranslator
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.audio_mixer import AudioMixer
 from app.pipeline.subtitle_burner import SubtitleBurner
@@ -77,6 +79,7 @@ class PipelineOrchestrator:
         uploaded_video_path: Optional[Path],
         groq_api_key: str,
         gemini_api_key: str,
+        ai_mode: str = "cloud",
         voice_engine: str = "edge_tts",
         edge_tts_voice: str = "my-MM-NilarNeural",
         voxcpm_voice_path: Optional[str] = None,
@@ -129,11 +132,17 @@ class PipelineOrchestrator:
             # STAGE 3: အသံကို စာသားအဖြစ် ပြောင်းနေပါတယ်... (Groq STT)
             # ----------------------------------------------------
             stage_3 = STAGES[2]
-            self._notify(stage_3, 3, "Groq API ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
-            transcriber = GroqTranscriber(
-                api_key=groq_api_key,
-                progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
-            )
+            if ai_mode == "local":
+                self._notify(stage_3, 3, "Local Whisper ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
+                transcriber = LocalWhisperTranscriber(
+                    progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
+                )
+            else:
+                self._notify(stage_3, 3, "Groq API ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
+                transcriber = GroqTranscriber(
+                    api_key=groq_api_key,
+                    progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
+                )
             groq_res = transcriber.transcribe(original_audio, self.job_dir)
             self.artifacts["transcript_json"] = "transcript.json"
             self.artifacts["transcript_txt"] = "transcript.txt"
@@ -143,8 +152,9 @@ class PipelineOrchestrator:
                 f"စာသားပြောင်းလဲခြင်း ပြီးပါပြီ ({len(groq_res['segments'])} segments)",
                 100.0,
                 data={
-                    "groq_text": groq_res["text"],
-                    "groq_segments": groq_res["segments"]
+                    "transcript_text": groq_res["text"],
+                    "transcript_segments": groq_res["segments"],
+                    "ai_mode": ai_mode,
                 }
             )
 
@@ -152,17 +162,24 @@ class PipelineOrchestrator:
             # STAGE 4: စာသားကို ဘာသာပြန် / ပြန်လည်ရေးသားနေပါတယ်... (Gemini)
             # ----------------------------------------------------
             stage_4 = STAGES[3]
-            self._notify(stage_4, 4, "Gemini API ဖြင့် ဇာတ်လမ်းပြောစာသား စီစဉ်နေပါသည်...", 15.0)
-            rewriter = GeminiRewriter(
-                api_key=gemini_api_key,
-                progress_callback=lambda msg, pct: self._notify(stage_4, 4, msg, pct)
-            )
-            gemini_res = rewriter.process(
-                groq_result=groq_res,
-                output_dir=self.job_dir,
-                mode=gemini_mode,
-                target_language=target_language
-            )
+            if ai_mode == "local":
+                self._notify(stage_4, 4, "Local NLLB ဖြင့် မူရင်းအဓိပ္ပာယ်မပျက် ဘာသာပြန်နေပါသည်...", 15.0)
+                rewriter = LocalNLLBTranslator(
+                    progress_callback=lambda msg, pct: self._notify(stage_4, 4, msg, pct)
+                )
+                gemini_res = rewriter.translate(groq_res, self.job_dir, target_language=target_language)
+            else:
+                self._notify(stage_4, 4, "Gemini API ဖြင့် မူရင်းအဓိပ္ပာယ်မပျက် ဘာသာပြန်နေပါသည်...", 15.0)
+                rewriter = GeminiRewriter(
+                    api_key=gemini_api_key,
+                    progress_callback=lambda msg, pct: self._notify(stage_4, 4, msg, pct)
+                )
+                gemini_res = rewriter.process(
+                    groq_result=groq_res,
+                    output_dir=self.job_dir,
+                    mode=gemini_mode,
+                    target_language=target_language
+                )
             self.artifacts["processed_transcript_txt"] = "processed_transcript.txt"
             self.artifacts["processed_transcript_json"] = "processed_transcript.json"
 

@@ -41,6 +41,7 @@ job_event_queues: Dict[str, List[asyncio.Queue]] = {}
 
 
 class SettingsUpdateRequest(BaseModel):
+    ai_mode: Optional[str] = None
     groq_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     target_language: Optional[str] = None
@@ -274,10 +275,12 @@ async def get_job_status(job_id: str):
 
 @app.post("/api/jobs")
 async def create_job(payload: JobCreateRequest):
-    if not settings_manager.get_groq_key():
-        raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
-    if not settings_manager.get_gemini_key():
-        raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+    ai_mode = settings_manager.get("ai_mode", "local")
+    if ai_mode != "local":
+        if not settings_manager.get_groq_key():
+            raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+        if not settings_manager.get_gemini_key():
+            raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     if not payload.video_url:
         raise HTTPException(status_code=400, detail="Video Link ထည့်သွင်းပေးပါ။")
@@ -334,10 +337,12 @@ async def create_job_upload(
     font_color: Optional[str] = Form(None),
     subtitle_enabled: Optional[str] = Form(None)
 ):
-    if not settings_manager.get_groq_key():
-        raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
-    if not settings_manager.get_gemini_key():
-        raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+    ai_mode = settings_manager.get("ai_mode", "local")
+    if ai_mode != "local":
+        if not settings_manager.get_groq_key():
+            raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+        if not settings_manager.get_gemini_key():
+            raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     updates = {}
     if target_language:

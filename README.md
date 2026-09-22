@@ -92,16 +92,16 @@ Job တင်လိုက်သည်နှင့် လွတ်နေသော
 
 Kaggle Notebook တွင် **Internet** ကိုဖွင့်ပါ။ VoxCPM2 သုံးမည်ဆိုလျှင် **GPU** ကိုလည်းဖွင့်ပါ။ Project ကို Kaggle Dataset ZIP အဖြစ် upload လုပ်ရန်မလိုပါ။ Kaggle Cell 1 သည် GitHub `main` branch ကို `git clone` ဖြင့် `/kaggle/working/recap-free` ထဲသို့ တိုက်ရိုက်ရယူသည်။
 
-အပြည့်အစုံ cell များကို [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt) တွင် ထည့်ထားသည်။ Run order သည် အောက်ပါအတိုင်းဖြစ်သည်။
+အပြည့်အစုံ cell များကို [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt) တွင် ထည့်ထားသည်။ Cell 3 တွင် VoxCPM2၊ local Whisper နှင့် local NLLB model သုံးခုလုံးကို UI မဖွင့်မီ တစ်ခါတည်း download လုပ်သည်။ Run order သည် အောက်ပါအတိုင်းဖြစ်သည်။
 
 ```text
 Cell 1 — GitHub clone
 Cell 2 — FFmpeg, Myanmar fonts, and Python dependencies
-Cell 3 — VoxCPM2 model download
+Cell 3 — VoxCPM2 + Local Whisper + Local NLLB model download
 Cell 4 — FastAPI and Cloudflare foreground tunnel
 ```
 
-Cell 4 သည် foreground process အဖြစ် run နေမည်။ Output ထဲမှ **နောက်ဆုံးထွက်သော** `trycloudflare.com` URL ကို browser တွင်ဖွင့်ပါ။ API key များကို repository code ထဲမထည့်ဘဲ UI Settings မှာ session အတွင်းသာ ထည့်ပါ။
+Cell 4 သည် foreground process အဖြစ် run နေမည်။ Output ထဲမှ **နောက်ဆုံးထွက်သော** `trycloudflare.com` URL ကို browser တွင်ဖွင့်ပါ။ UI Settings တွင် `AI Mode = Local AI` ထားလျှင် Groq/Gemini API key မလိုပါ။ Cloud API mode ရွေးမှသာ key များထည့်ပါ။
 
 Cloudflare quick tunnel URL သေသွားပါက အဟောင်း URL သည် ပြန်မရနိုင်ပါ။ `KAGGLE_CELLS_v9.txt` ထဲရှိ **RECOVERY CELL** နှင့် **RECOVERY CELL 2** ကို run ပြီး `CURRENT PUBLIC URL` အောက်မှ နောက်ဆုံး URL ကိုသုံးပါ။ Launcher သည် tunnel process ရပ်သွားပါက ပြန်စရန် supervisor loop ပါသည်။
 
@@ -198,7 +198,7 @@ recap-free/
 
 ## Current scope and limitations
 
-The current implementation uses **Groq API for transcription** and **Gemini API for translation/controlled rewriting**. Local Whisper and local translation models are not included in this version. Edge TTS uses a network service. VoxCPM2 is the local voice-generation option and requires its model weights, compatible Python dependencies, and enough VRAM.
+The application supports two AI modes. **Local AI** uses a pre-downloaded faster-whisper large-v3 model for transcription and NLLB-200 distilled 1.3B for faithful translation; once Cell 3 finishes, the UI does not download models. **Cloud API** uses Groq for transcription and Gemini for faithful translation. Edge TTS still uses a network service, while VoxCPM2 is the local voice-generation option. Local Whisper and NLLB are placed on separate T4 GPUs when two GPUs are available, with a safe single-GPU fallback.
 
 The project is intended for controlled personal and development use. It does not bypass access controls, guarantee that every platform URL is downloadable, or guarantee that a free notebook session remains alive for a particular duration. Always test one short video before submitting a larger batch.
 

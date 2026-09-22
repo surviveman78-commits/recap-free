@@ -402,6 +402,16 @@
               </select>
             </div>
           </div>
+          <div class="bv-setting-field">
+            <label for="aiMode" class="bv-input-label">AI Mode (Transcribe + Translate)</label>
+            <div class="bv-3d-select-wrapper">
+              <select id="aiMode" class="bv-select-field">
+                <option value="local">Local AI — Whisper + NLLB (No API key)</option>
+                <option value="cloud">Cloud API — Groq + Gemini</option>
+              </select>
+            </div>
+            <p class="bv-note-text">Local AI model များကို Kaggle cell တွင် ကြိုတင် download လုပ်ထားရမည်။</p>
+          </div>
         </div>
 
         <!-- TAB 2: အသံ (Voice Settings) -->

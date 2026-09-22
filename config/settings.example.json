@@ -5,6 +5,7 @@
   "edge_tts_voice": "en-US-ChristopherNeural",
   "voxcpm_voice": "reference_speaker",
   "gemini_mode": "rewrite",
+  "ai_mode": "local",
   "target_language": "en",
   "font_style": "Noto Sans Myanmar"
 }
