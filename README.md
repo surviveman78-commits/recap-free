@@ -90,12 +90,12 @@ Job တင်လိုက်သည်နှင့် လွတ်နေသော
   <img src="docs/kaggle-flow.png" alt="Kaggle setup and recovery flow" width="100%">
 </p>
 
-Kaggle Notebook တွင် **Internet** ကိုဖွင့်ပါ။ VoxCPM2 သုံးမည်ဆိုလျှင် **GPU** ကိုလည်းဖွင့်ပါ။ Project ကို ZIP အဖြစ် Kaggle Dataset တွင် upload လုပ်ပြီး Notebook Input အဖြစ် attach လုပ်နိုင်သည်။
+Kaggle Notebook တွင် **Internet** ကိုဖွင့်ပါ။ VoxCPM2 သုံးမည်ဆိုလျှင် **GPU** ကိုလည်းဖွင့်ပါ။ Project ကို Kaggle Dataset ZIP အဖြစ် upload လုပ်ရန်မလိုပါ။ Kaggle Cell 1 သည် GitHub `main` branch ကို `git clone` ဖြင့် `/kaggle/working/recap-free` ထဲသို့ တိုက်ရိုက်ရယူသည်။
 
 အပြည့်အစုံ cell များကို [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt) တွင် ထည့်ထားသည်။ Run order သည် အောက်ပါအတိုင်းဖြစ်သည်။
 
 ```text
-Cell 1 — Project copy
+Cell 1 — GitHub clone
 Cell 2 — FFmpeg, Myanmar fonts, and Python dependencies
 Cell 3 — VoxCPM2 model download
 Cell 4 — FastAPI and Cloudflare foreground tunnel
@@ -232,9 +232,9 @@ VoxCPM2 is the local voice-generation and cloning option. v9 assigns up to two V
 
 ## Kaggle workflow
 
-The repository includes [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt). It contains project copying, dependency installation, Myanmar font installation, optional VoxCPM2 model download, server/tunnel startup, and recovery cells for dead quick-tunnel URLs.
+The repository includes [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt). Cell 1 clones the latest GitHub `main` branch. The remaining cells install dependencies, install Myanmar fonts, download the optional VoxCPM2 model, start the server/tunnel, and recover dead quick-tunnel URLs.
 
-Enable Internet in Kaggle. Enable a GPU when using VoxCPM2. Run the cells in order. Keep the foreground launcher cell running. Open only the latest `trycloudflare.com` URL printed by the supervisor. If the URL becomes unreachable, run the recovery cell, then use the latest URL printed by the recovery log reader.
+Enable Internet in Kaggle. Enable a GPU when using VoxCPM2. Run the cells in order. Cell 1 clones the repository, so it must run with Internet enabled. Keep the foreground launcher cell running. Open only the latest `trycloudflare.com` URL printed by the supervisor. If the URL becomes unreachable, run the recovery cell, then use the latest URL printed by the recovery log reader.
 
 API keys are entered in the UI for the active session. Do not place them in this repository, notebook source, or a Kaggle Dataset. Download completed outputs before the Kaggle session expires.
 
@@ -287,9 +287,9 @@ VoxCPM2 用于本地语音生成和参考音色克隆。v9 会为 VoxCPM2 任务
 
 ## Kaggle 使用方法
 
-仓库中的 [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt) 包含完整的 Kaggle 单元格，包括项目复制、依赖安装、缅甸字体安装、VoxCPM2 模型下载、服务器和 Cloudflare 隧道启动，以及隧道失效后的恢复单元格。
+仓库中的 [`KAGGLE_CELLS_v9.txt`](KAGGLE_CELLS_v9.txt) 包含完整的 Kaggle 单元格。第一个单元格会直接克隆 GitHub `main` 分支，后续单元格负责依赖安装、缅甸字体安装、VoxCPM2 模型下载、服务器和 Cloudflare 隧道启动，以及隧道失效后的恢复。
 
-在 Kaggle 中打开 Internet。使用 VoxCPM2 时打开 GPU。按顺序运行单元格，并保持前台启动单元格继续运行。浏览器中只打开 supervisor 最新打印的 `trycloudflare.com` 地址。如果出现 DNS 错误或页面无法访问，请运行 recovery cell，然后使用日志读取单元格打印的最新地址。Groq 和 Gemini 密钥只在运行时通过 UI Settings 输入，不要写入仓库或 Kaggle Dataset。
+在 Kaggle 中打开 Internet。使用 VoxCPM2 时打开 GPU。按顺序运行单元格，因为第一个单元格需要从 GitHub 克隆项目。保持前台启动单元格继续运行。浏览器中只打开 supervisor 最新打印的 `trycloudflare.com` 地址。如果出现 DNS 错误或页面无法访问，请运行 recovery cell，然后使用日志读取单元格打印的最新地址。Groq 和 Gemini 密钥只在运行时通过 UI Settings 输入，不要写入仓库或 Kaggle Dataset。
 
 ## 本地运行
 

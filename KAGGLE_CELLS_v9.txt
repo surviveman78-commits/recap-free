@@ -10,18 +10,21 @@ v9 concurrency:
 
 သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
 
-CELL 1 — Project copy
+CELL 1 — GitHub clone
 ----------------------
-import shutil
 from pathlib import Path
-input_root = Path('/kaggle/input')
+import shutil, subprocess
 project = Path('/kaggle/working/recap-free')
 shutil.rmtree(project, ignore_errors=True)
-launchers = list(input_root.rglob('kaggle_foreground.py'))
-if not launchers:
-    raise FileNotFoundError('recap-free-kaggle-v9.zip dataset ကို attach လုပ်ထားတာ စစ်ပါ။')
-shutil.copytree(launchers[0].parent, project)
-print('Project ready:', project)
+subprocess.run([
+    'git', 'clone', '--depth', '1',
+    'https://github.com/surviveman78-commits/recap-free.git',
+    str(project)
+], check=True)
+print('Project cloned:', project)
+print('Latest source:', subprocess.check_output(
+    ['git', '-C', str(project), 'log', '-1', '--oneline'], text=True
+).strip())
 
 CELL 2 — Install
 -----------------
