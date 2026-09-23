@@ -102,7 +102,8 @@ class JobQueueManager:
 
     def submit_job(self, video_url=None, uploaded_video_path=None, target_language=None,
                    enable_subtitles=True, font_color=None, font_size_px=None,
-                   font_style=None, subtitle_pos_x=None, subtitle_pos_y=None) -> str:
+                   font_style=None, subtitle_pos_x=None, subtitle_pos_y=None,
+                   output_resolution=None) -> str:
         job_id = f"job_{uuid.uuid4().hex[:8]}"
         job_dir = JOBS_DIR / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -120,6 +121,10 @@ class JobQueueManager:
             "subtitle_pos_y": subtitle_pos_y if subtitle_pos_y is not None else float(settings_manager.get("subtitle_pos_y", 82.0)),
             "auto_blur_subtitles": bool(settings_manager.get("auto_blur_subtitles", False)),
             "auto_blur_padding_pct": float(settings_manager.get("auto_blur_padding_pct", 1.5)),
+            "voxcpm_voice_path": str(settings_manager.get("voxcpm_voice_path", "") or ""),
+            "voxcpm_voice_name": str(settings_manager.get("voxcpm_voice_name", "") or ""),
+            "voxcpm_reference_text": str(settings_manager.get("voxcpm_reference_text", "") or ""),
+            "output_resolution": str(output_resolution or settings_manager.get("output_resolution", "1080p") or "1080p").lower(),
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
             "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }
@@ -200,8 +205,8 @@ class JobQueueManager:
             ai_mode=job_data.get("ai_mode", "local"),
             voice_engine=job_data["voice_engine"],
             edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
-            voxcpm_voice_path=settings_manager.get("voxcpm_voice_path", ""),
-            voxcpm_ref_text=settings_manager.get("voxcpm_reference_text", ""),
+            voxcpm_voice_path=job_data.get("voxcpm_voice_path", ""),
+            voxcpm_ref_text=job_data.get("voxcpm_reference_text", ""),
             voxcpm_device=job_data.get("voxcpm_device"),
             gemini_mode=settings_manager.get("gemini_prompt_mode", "translate"),
             target_language=job_data["target_language"], font_color=job_data["font_color"],
@@ -210,6 +215,7 @@ class JobQueueManager:
             enable_subtitles=job_data["enable_subtitles"],
             auto_blur_subtitles=job_data.get("auto_blur_subtitles", False),
             auto_blur_padding_pct=job_data.get("auto_blur_padding_pct", 1.5),
+            output_resolution=job_data.get("output_resolution", "1080p"),
         )
         with self.lock:
             self.jobs[job_id].update(

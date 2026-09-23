@@ -321,12 +321,16 @@ class TTSEngine:
         # Resolve voice reference path for VoxCPM if chosen
         ref_path = None
         if engine == "voxcpm2":
-            if voxcpm_ref_path and os.path.exists(voxcpm_ref_path):
+            if voxcpm_ref_path:
+                if not os.path.exists(voxcpm_ref_path):
+                    raise FileNotFoundError(
+                        f"Selected VoxCPM reference audio is missing: {voxcpm_ref_path}"
+                    )
                 ref_path = voxcpm_ref_path
             else:
-                available = self.get_voxcpm_voices()
-                if available:
-                    ref_path = available[0]["path"]
+                raise FileNotFoundError(
+                    "No VoxCPM reference audio is selected. Upload a reference audio file first."
+                )
 
         # Step 1: Synthesize each sentence snippet
         raw_snippets = []

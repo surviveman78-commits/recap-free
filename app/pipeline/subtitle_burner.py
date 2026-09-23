@@ -236,7 +236,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             srt_end = format_srt_timestamp(end)
             srt_lines.append(f"{idx + 1}\n{srt_start} --> {srt_end}\n{subtitle_text}\n\n")
 
-        with open(ass_path, "w", encoding="utf-8") as f:
+        # libass is more reliable across Kaggle FFmpeg builds when ASS is
+        # written with an explicit UTF-8 BOM, as in the known-good renderer.
+        with open(ass_path, "w", encoding="utf-8-sig") as f:
             f.writelines(ass_lines)
 
         with open(srt_path, "w", encoding="utf-8") as f:
@@ -289,8 +291,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if self.progress_callback:
             self.progress_callback(f"စာတန်းထိုးနေပါတယ်... (FFmpeg {encoder_name} rendering)", 50.0)
 
-        sub_rel = ass_path.name
-        
         # Resolve the selected font explicitly; this avoids missing-font fallback on Kaggle.
         fonts_dir_arg = ""
         safe_font, selected_font_path = self._resolve_font(font_style)
@@ -313,7 +313,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             clean_fonts_dir = str(CUSTOM_FONTS_DIR).replace('\\', '/').replace(':', '\\:')
             fonts_dir_arg = f":fontsdir='{clean_fonts_dir}'"
 
-        sub_filter = f"subtitles='{sub_rel}'{fonts_dir_arg}"
+        # Use an absolute ASS path and the ASS filter. Relative paths and the
+        # generic subtitles filter can resolve a stale/wrong file in queued
+        # Kaggle jobs; the reference renderer uses this exact approach.
+        ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        sub_filter = f"ass='{ass_filter_path}'{fonts_dir_arg}"
         if blur_band:
             blur_top = max(0, min(height - 1, int(height * float(blur_band["top_percent"]) / 100.0)))
             blur_bottom = max(blur_top + 1, min(height, int(height * float(blur_band["bottom_percent"]) / 100.0)))

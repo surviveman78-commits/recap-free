@@ -76,6 +76,7 @@ const groqApiKey = document.getElementById("groqApiKey");
 const geminiApiKey = document.getElementById("geminiApiKey");
 const settingsTargetLang = document.getElementById("settingsTargetLang");
 const aiMode = document.getElementById("aiMode");
+const outputResolution = document.getElementById("outputResolution");
 const voiceEngine = document.getElementById("voiceEngine");
 const edgeTtsSettingsBlock = document.getElementById("edgeTtsSettingsBlock");
 const voxcpmSettingsBlock = document.getElementById("voxcpmSettingsBlock");
@@ -406,6 +407,7 @@ async function loadSettings() {
     if (appSettings.groq_api_key) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
     if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
+    if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
     if (appSettings.voice_engine) { voiceEngine.value = appSettings.voice_engine; toggleVoiceEngine(appSettings.voice_engine); }
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
@@ -477,6 +479,7 @@ settingsForm.addEventListener("submit", async (e) => {
     font_style: fontStyleSelect.value,
     subtitle_pos_x: subPosX,
     subtitle_pos_y: subPosY,
+    output_resolution: outputResolution ? outputResolution.value : "1080p",
     auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)
   };
   const groqVal = groqApiKey.value.trim();
@@ -873,6 +876,7 @@ startBtn.addEventListener("click", async () => {
           font_style: fontStyleSelect.value,
           font_size_px: parseInt(fontSizeRange.value, 10),
           font_color: fontColorPicker.value,
+          output_resolution: outputResolution ? outputResolution.value : "1080p",
           subtitle_enabled: subtitleEnabled
         })
       });
@@ -940,6 +944,7 @@ startBtn.addEventListener("click", async () => {
     formData.append("font_style", fontStyleSelect.value);
     formData.append("font_size_px", parseInt(fontSizeRange.value, 10));
     formData.append("font_color", fontColorPicker.value);
+    formData.append("output_resolution", outputResolution ? outputResolution.value : "1080p");
     formData.append("subtitle_enabled", subtitleEnabled ? "true" : "false");
 
     try {

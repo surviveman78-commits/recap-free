@@ -74,6 +74,7 @@ class SettingsUpdateRequest(BaseModel):
     subtitle_pos_y: Optional[float] = None
     auto_blur_subtitles: Optional[bool] = None
     auto_blur_padding_pct: Optional[float] = None
+    output_resolution: Optional[str] = None
 
 
 class JobCreateRequest(BaseModel):
@@ -85,6 +86,7 @@ class JobCreateRequest(BaseModel):
     font_size_px: Optional[int] = None
     font_color: Optional[str] = None
     subtitle_enabled: Optional[bool] = True
+    output_resolution: Optional[str] = None
 
 
 @app.get("/api/settings")
@@ -336,6 +338,10 @@ async def create_job(payload: JobCreateRequest):
         updates["font_size_px"] = payload.font_size_px
     if payload.font_color:
         updates["font_color"] = payload.font_color
+    if payload.output_resolution:
+        if payload.output_resolution.lower() not in ("1080p", "2k", "4k"):
+            raise HTTPException(status_code=400, detail="Output resolution must be 1080p, 2K, or 4K.")
+        updates["output_resolution"] = payload.output_resolution.lower()
     if updates:
         settings_manager.save(updates)
 
@@ -350,7 +356,8 @@ async def create_job(payload: JobCreateRequest):
         font_size_px=payload.font_size_px,
         font_style=payload.font_style,
         subtitle_pos_x=payload.subtitle_pos_x,
-        subtitle_pos_y=payload.subtitle_pos_y
+        subtitle_pos_y=payload.subtitle_pos_y,
+        output_resolution=payload.output_resolution,
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)
@@ -373,7 +380,8 @@ async def create_job_upload(
     font_style: Optional[str] = Form(None),
     font_size_px: Optional[int] = Form(None),
     font_color: Optional[str] = Form(None),
-    subtitle_enabled: Optional[str] = Form(None)
+    subtitle_enabled: Optional[str] = Form(None),
+    output_resolution: Optional[str] = Form(None)
 ):
     ai_mode = settings_manager.get("ai_mode", "local")
     if ai_mode != "local":
@@ -395,6 +403,10 @@ async def create_job_upload(
         updates["font_size_px"] = font_size_px
     if font_color:
         updates["font_color"] = font_color
+    if output_resolution:
+        if output_resolution.lower() not in ("1080p", "2k", "4k"):
+            raise HTTPException(status_code=400, detail="Output resolution must be 1080p, 2K, or 4K.")
+        updates["output_resolution"] = output_resolution.lower()
     if updates:
         settings_manager.save(updates)
 
@@ -421,7 +433,8 @@ async def create_job_upload(
         font_size_px=font_size_px,
         font_style=font_style,
         subtitle_pos_x=subtitle_pos_x,
-        subtitle_pos_y=subtitle_pos_y
+        subtitle_pos_y=subtitle_pos_y,
+        output_resolution=output_resolution,
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)

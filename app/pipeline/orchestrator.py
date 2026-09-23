@@ -95,7 +95,8 @@ class PipelineOrchestrator:
         pos_y_pct: float = 82.0,
         enable_subtitles: bool = True,
         auto_blur_subtitles: bool = False,
-        auto_blur_padding_pct: float = 1.5
+        auto_blur_padding_pct: float = 1.5,
+        output_resolution: str = "1080p"
     ) -> Dict[str, Any]:
         try:
             self.status = "running"
@@ -223,7 +224,7 @@ class PipelineOrchestrator:
             mixer = AudioMixer(
                 progress_callback=lambda msg, pct: self._notify(stage_6, 6, msg, pct)
             )
-            dubbed_video = mixer.mix(video_file, tts_audio)
+            dubbed_video = mixer.mix(video_file, tts_audio, resolution=output_resolution)
             self.artifacts["dubbed_video"] = dubbed_video.name
 
             # ----------------------------------------------------

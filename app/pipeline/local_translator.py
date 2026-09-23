@@ -108,8 +108,12 @@ class LocalNLLBTranslator:
                     **encoded,
                     forced_bos_token_id=target_id,
                     max_length=512,
-                    num_beams=4,
+                    num_beams=int(os.getenv("RECAP_NLLB_BEAMS", "5")),
                     do_sample=False,
+                    length_penalty=1.05,
+                    no_repeat_ngram_size=3,
+                    repetition_penalty=1.08,
+                    early_stopping=True,
                 )
             results = tokenizer.batch_decode(output, skip_special_tokens=True)
             for original, text in zip(source_segments[start:start + batch_size], results):

@@ -37,6 +37,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "enable_subtitles": True,
     "auto_blur_subtitles": False,
     "auto_blur_padding_pct": 1.5,
+    "output_resolution": "1080p",
 }
 
 
