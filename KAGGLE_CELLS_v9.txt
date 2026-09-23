@@ -1,120 +1,183 @@
-RECAP FREE — KAGGLE RUN CELLS v11 LOCAL AI
+RECAP FREE — KAGGLE RUN CELLS v12
 =================================
 
-v9 concurrency:
-- Edge TTS: အများဆုံး ၃ ပုဒ် တစ်ပြိုင်တည်း
-- VoxCPM2: အများဆုံး ၁ ပုဒ် တစ်ပြိုင်တည်း; GPU တစ်လုံးကိုသာ အသုံးပြုမည်
-- Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
-- Job တင်ချိန်မှာရွေးထားတဲ့ Voice Engine ကို snapshot သိမ်းမည်
-- Local AI: faster-whisper + NLLB-200 ကို cell ကနေ ကြို download လုပ်မည်
-- Cloud AI: Groq + Gemini ကို UI မှာရွေးလျှင်သာ သုံးမည်
+ဒီ cells တွေက production GitHub main နဲ့ကိုက်ပါတယ်။ API key ကို code ထဲမထည့်ပါ။ Cloud AI သုံးမှသာ UI Settings ထဲမှာ session အတွင်း ထည့်ပါ။
 
-သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
+အရေးကြီးသော defaults:
+- Edge TTS: တစ်ပြိုင်တည်း အများဆုံး ၃ jobs
+- VoxCPM2: တစ်ပြိုင်တည်း အများဆုံး ၁ job
+- Local Whisper + Local NLLB: Cell 3 မှာ UI မဖွင့်ခင် download လုပ်မည်
+- VoxCPM HIFI continuation: default ပိတ်ထားသည်။ Reference audio မကိုက်လို့ ကွိကွိအသံ မထွက်အောင် timbre-only clone ကို default သုံးမည်
+- Output resolution: video ပြီးမှ Download 1080p / 2K / 4K ရွေးမည်
+- History: Queue အောက်မှာ ပြီးဆုံးထားသော videos အဖြစ် စာရင်းပြမည်
 
-CELL 1 — GitHub clone
-----------------------
+CELL 1 — PRODUCTION GITHUB CLONE
+--------------------------------
+```python
 from pathlib import Path
-import shutil, subprocess
+import shutil
+import subprocess
+
 project = Path('/kaggle/working/recap-free')
 shutil.rmtree(project, ignore_errors=True)
+
 subprocess.run([
     'git', 'clone', '--depth', '1',
     'https://github.com/surviveman78-commits/recap-free.git',
     str(project)
 ], check=True)
-print('Project cloned:', project)
-print('Latest source:', subprocess.check_output(
+
+print('Project:', project)
+print('Branch: production main')
+print(subprocess.check_output(
     ['git', '-C', str(project), 'log', '-1', '--oneline'], text=True
 ).strip())
+```
 
-CELL 2 — Install
------------------
+CELL 2 — SYSTEM PACKAGES + PYTHON PACKAGES
+-------------------------------------------
+```python
 %cd /kaggle/working/recap-free
+
 !apt-get update -qq
 !apt-get install -y -qq ffmpeg fontconfig fonts-noto-core fonts-sil-padauk fonts-myanmar libsndfile1
 !fc-cache -f
+
+!pip install -q --upgrade pip
 !pip install -q -r requirements-kaggle.txt
-import edge_tts, voxcpm, faster_whisper, transformers
-print('Edge TTS, VoxCPM2, Local Whisper, Local NLLB dependencies READY')
 
-CELL 3 — Download all local models before UI
-----------------------------------------------
-%cd /kaggle/working/recap-free
-from huggingface_hub import snapshot_download
-import os
-models_root = '/kaggle/working/models'
-voxcpm_dir = f'{models_root}/VoxCPM2'
-whisper_dir = f'{models_root}/faster-whisper-large-v3'
-nllb_dir = f'{models_root}/nllb-200-distilled-1.3B'
+import edge_tts
+import voxcpm
+import faster_whisper
+import transformers
 
-snapshot_download(repo_id='openbmb/VoxCPM2', local_dir=voxcpm_dir)
-snapshot_download(repo_id='Systran/faster-whisper-large-v3', local_dir=whisper_dir)
-snapshot_download(repo_id='facebook/nllb-200-distilled-1.3B', local_dir=nllb_dir)
+print('Packages ready: Edge TTS, VoxCPM2, faster-whisper, transformers')
+```
 
-os.environ['VOXCPM_MODEL_ID'] = voxcpm_dir
-os.environ['RECAP_WHISPER_MODEL'] = whisper_dir
-os.environ['RECAP_NLLB_MODEL'] = nllb_dir
-os.environ['RECAP_LOCAL_ONLY'] = '1'
-os.environ['RECAP_WHISPER_DEVICE'] = 'cuda'
-os.environ['RECAP_WHISPER_DEVICE_INDEX'] = '0'
-os.environ['RECAP_NLLB_DEVICE'] = 'cuda:1'
-print('VoxCPM2 ready:', voxcpm_dir)
-print('Local Whisper ready:', whisper_dir)
-print('Local NLLB ready:', nllb_dir)
-
-CELL 4 — Start server
-----------------------
-%cd /kaggle/working/recap-free
-!python kaggle_foreground.py
-
-Cell 4 ကို running ထားပါ။ Output ထဲက trycloudflare URL ကို browser မှာဖွင့်ပါ။
-
-UI အသုံးပြုရန်
---------------
-1. Settings ထဲမှာ AI Mode ကို **Local AI** ထားပါ။ Local mode မှာ API key မလိုပါ။
-2. Voice Engine ကို Edge TTS ထားပြီး video ၃ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
-3. Voice Engine ကို VoxCPM2 ထားပြီး video ၁ ပုဒ်ကိုသာ တစ်ချိန်တည်းလုပ်ပါမည်။
-4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
-5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
-6. Font ကို Noto Sans Myanmar သို့မဟုတ် Padauk ရွေးပါ။
-7. Cloud AI သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Groq/Gemini key ထည့်ပါ။
-
-UI မှာ Edge TTS ၃ jobs နဲ့ VoxCPM2 ၁ job ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
-
-
-OPTIONAL PRECHECK — T4 နှစ်လုံးစစ်ရန်
---------------------------------------
+CELL 3 — GPU CHECK
+------------------
+```python
 import torch
+
 print('GPU count:', torch.cuda.device_count())
 for i in range(torch.cuda.device_count()):
-    print(i, torch.cuda.get_device_name(i), round(torch.cuda.get_device_properties(i).total_memory/1024**3, 2), 'GB')
+    props = torch.cuda.get_device_properties(i)
+    print(i, torch.cuda.get_device_name(i), round(props.total_memory / 1024**3, 2), 'GB')
 
-GPU count 2 မဟုတ်ရင် VoxCPM2 ၂ jobs မစမ်းပါနှင့်။
+if torch.cuda.device_count() == 0:
+    raise RuntimeError('Kaggle Accelerator ကို GPU သို့ ပြောင်းပြီး Cell ကို ပြန် run ပါ။')
+```
 
+CELL 4 — DOWNLOAD LOCAL MODELS BEFORE UI
+----------------------------------------
+```python
+%cd /kaggle/working/recap-free
 
-RECOVERY CELL — URL DNS error / site can’t be reached
-------------------------------------------------------
-# ဒီ cell က dead tunnel/server ကိုရှင်းပြီး fresh URL အသစ်ပြန်ထုတ်ပါမယ်။
-import os, signal, subprocess, sys, time
+import os
+from pathlib import Path
+from huggingface_hub import snapshot_download
+
+models_root = Path('/kaggle/working/models')
+models_root.mkdir(parents=True, exist_ok=True)
+
+voxcpm_dir = models_root / 'VoxCPM2'
+whisper_dir = models_root / 'faster-whisper-large-v3'
+nllb_dir = models_root / 'nllb-200-distilled-1.3B'
+
+print('Downloading VoxCPM2...')
+snapshot_download(
+    repo_id='openbmb/VoxCPM2',
+    local_dir=str(voxcpm_dir),
+)
+
+print('Downloading Faster-Whisper...')
+snapshot_download(
+    repo_id='Systran/faster-whisper-large-v3',
+    local_dir=str(whisper_dir),
+)
+
+print('Downloading NLLB-200...')
+snapshot_download(
+    repo_id='facebook/nllb-200-distilled-1.3B',
+    local_dir=str(nllb_dir),
+)
+
+# These variables must be set in the same notebook session before starting the server.
+os.environ['VOXCPM_MODEL_ID'] = str(voxcpm_dir)
+os.environ['RECAP_WHISPER_MODEL'] = str(whisper_dir)
+os.environ['RECAP_NLLB_MODEL'] = str(nllb_dir)
+os.environ['HF_HOME'] = '/kaggle/working/huggingface'
+os.environ['RECAP_LOCAL_ONLY'] = '1'
+
+# T4 GPU assignment.
+os.environ['RECAP_WHISPER_DEVICE'] = 'cuda'
+os.environ['RECAP_WHISPER_DEVICE_INDEX'] = '0'
+os.environ['RECAP_WHISPER_COMPUTE'] = 'float16'
+os.environ['RECAP_NLLB_DEVICE'] = 'cuda:1' if __import__('torch').cuda.device_count() >= 2 else 'cuda:0'
+os.environ['RECAP_TRANSLATION_BATCH'] = '4'
+os.environ['RECAP_NLLB_BEAMS'] = '5'
+
+# Stable VoxCPM voice cloning: use uploaded reference timbre only by default.
+# Set this to 1 only when the reference text exactly matches the audio word-for-word.
+os.environ['RECAP_VOXCPM_HIFI'] = '0'
+os.environ['RECAP_VOXCPM_CFG'] = '2.0'
+os.environ['RECAP_VOXCPM_STEPS'] = '10'
+
+print('VoxCPM2:', voxcpm_dir)
+print('Whisper:', whisper_dir)
+print('NLLB:', nllb_dir)
+print('NLLB device:', os.environ['RECAP_NLLB_DEVICE'])
+print('VoxCPM HIFI:', os.environ['RECAP_VOXCPM_HIFI'])
+print('All local models are ready.')
+```
+
+CELL 5 — START SERVER + CLOUDFLARE URL
+--------------------------------------
+```python
+%cd /kaggle/working/recap-free
+
+# Keep this cell running. Do not interrupt it after the public URL appears.
+import os
+os.environ['RECAP_HOST'] = '0.0.0.0'
+os.environ['RECAP_PORT'] = '8000'
+os.environ['RECAP_LOCAL_ONLY'] = '1'
+
+!python kaggle_foreground.py
+```
+
+Cell 5 output ထဲက နောက်ဆုံး `https://....trycloudflare.com` URL ကို browser မှာ ဖွင့်ပါ။ Tunnel URL ပျက်သွားရင် ဒီ Cell ကို မရပ်ပါနှင့်။ Supervisor က URL အသစ်ထုတ်ပါမည်။
+
+UI အသုံးပြုပုံ
+--------------
+1. Local AI သုံးမယ်ဆို Settings → AI Mode → `Local AI` ထားပါ။ API key မလိုပါ။
+2. Edge TTS သုံးမယ်ဆို Voice Engine → `Edge TTS` ရွေးပါ။
+3. VoxCPM2 သုံးမယ်ဆို Voice Engine → `VoxCPM2` ရွေးပြီး Reference Text ကို audio ထဲက စာသားအတိုင်းထည့်ပါ။ ပြီးမှ audio upload လုပ်ပါ။
+4. VoxCPM2 က reference audio မရွေးဘဲ run လုပ်ရင် random voice မသုံးတော့ဘဲ error ပြပါမည်။
+5. Auto Blur ကိုဖွင့်/ပိတ်နိုင်ပါသည်။ UI မှာ internal detection flow မပြပါ။
+6. Final video ပြီးမှ completed view ထဲက `Download 1080p`, `Download 2K`, `Download 4K` ရွေးပြီး `Video Download` နှိပ်ပါ။
+7. ပြီးဆုံးထားသော videos များကို Queue အောက်က History list မှာ တန်းစီပြပါမည်။
+
+RECOVERY CELL — DEAD URL / DNS ERROR
+-------------------------------------
+```python
+import os
+import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 root = Path('/kaggle/working/recap-free')
 os.chdir(root)
 
-# Old server/tunnel processes ရှင်းရန်
+# Stop only this project's old server and cloudflared processes.
 subprocess.run("pkill -f 'cloudflared.*127.0.0.1:8000'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run("pkill -f 'python.*kaggle_foreground.py'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 subprocess.run("pkill -f 'python.*run.py'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(2)
 
-# Old logs မပေါင်းအောင် rename လုပ်ထားမယ်
 log_dir = root / 'logs'
 log_dir.mkdir(exist_ok=True)
-for name in ['cloudflared.log', 'server_foreground.log']:
-    p = log_dir / name
-    if p.exists():
-        p.rename(log_dir / f'{name}.old')
-
-# Supervisor ကို background မှာ run; ၎င်းက tunnel ပျက်တိုင်း URL အသစ်ပြန်ထုတ်မယ်
 log = (log_dir / 'supervisor_notebook.log').open('ab')
 proc = subprocess.Popen(
     [sys.executable, 'kaggle_foreground.py'],
@@ -122,16 +185,18 @@ proc = subprocess.Popen(
     stdin=subprocess.DEVNULL, start_new_session=True,
 )
 print('Supervisor PID:', proc.pid)
-print('၅–၁၀ စက္ကန့်စောင့်ပြီး အောက်က Cell ကို run ပါ။')
+print('စက္ကန့်အနည်းငယ်စောင့်ပြီး Recovery Cell 2 ကို run ပါ။')
+```
 
-
-RECOVERY CELL 2 — URL အသစ်ဖတ်ရန်
----------------------------------
+RECOVERY CELL 2 — READ THE LATEST URL
+-------------------------------------
+```python
 from pathlib import Path
-import re, time
+import re
+import time
 
 log_path = Path('/kaggle/working/recap-free/logs/supervisor_notebook.log')
-for _ in range(12):
+for _ in range(20):
     if log_path.exists():
         text = log_path.read_text(errors='ignore')
         urls = re.findall(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', text)
@@ -140,7 +205,16 @@ for _ in range(12):
             break
     time.sleep(2)
 else:
-    print('URL မထွက်သေးပါ။ log ကိုစစ်ပါ:')
-    print(log_path.read_text(errors='ignore')[-3000:] if log_path.exists() else 'no log yet')
+    print('URL မထွက်သေးပါ။ Log နောက်ဆုံးပိုင်း:')
+    print(log_path.read_text(errors='ignore')[-4000:] if log_path.exists() else 'log မရှိသေးပါ')
+```
 
-အဟောင်း URL ကို မသုံးပါနှင့်။ `CURRENT PUBLIC URL` နောက်ဆုံးတစ်ခုကိုသာ browser မှာဖွင့်ပါ။
+အဟောင်း URL ကို မသုံးပါနှင့်။ `CURRENT PUBLIC URL` နောက်ဆုံးထွက်တဲ့ URL ကိုသာ ဖွင့်ပါ။
+
+မှတ်ချက်
+--------
+- Cell 1 မှာ production `main` ကို clone လုပ်ထားပါသည်။
+- API key များကို ဒီ file/cell ထဲ မထည့်ထားပါ။
+- `RECAP_VOXCPM_HIFI=0` ကို မပြောင်းပါနှင့်။ Reference audio ထဲက စာသားကို တိတိကျကျသေချာပေးနိုင်မှသာ `1` ပြောင်းစမ်းပါ။
+- 4K download ရွေးချယ်မှုသည် video ပြီးဆုံးပြီးနောက်မှသာ အလုပ်လုပ်ပါမည်။
+```
