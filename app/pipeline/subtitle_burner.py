@@ -69,6 +69,49 @@ def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> st
     return f"{''.join(compact_clusters[:cut])}\n{''.join(compact_clusters[cut:])}"
 
 
+def split_sequential_subtitle_segments(
+    segments: List[Dict[str, Any]], max_chars: int = 32
+) -> List[Dict[str, Any]]:
+    """Split long subtitle phrases into sequential one-line timed events."""
+    expanded: List[Dict[str, Any]] = []
+    for segment in segments:
+        text = normalize_myanmar_text(str(segment.get("text", "")).strip())
+        if not text:
+            continue
+        clusters = grapheme_clusters(text)
+        parts: List[str] = []
+        remaining = clusters[:]
+        while len(remaining) > max_chars:
+            cut = max_chars
+            # Prefer a phrase boundary or word space near the visual limit.
+            for index in range(max_chars, max(3, int(max_chars * 0.60)), -1):
+                if remaining[index - 1].isspace() or remaining[index - 1] in "၊။!?…,:;—-":
+                    cut = index
+                    break
+            parts.append("".join(remaining[:cut]).strip())
+            remaining = remaining[cut:]
+        tail = "".join(remaining).strip()
+        if tail:
+            parts.append(tail)
+        start = float(segment.get("start", 0.0))
+        end = float(segment.get("end", start + 1.0))
+        total_weight = max(1, sum(len(grapheme_clusters(part)) for part in parts))
+        cursor = start
+        for index, part in enumerate(parts):
+            if index == len(parts) - 1:
+                part_end = end
+            else:
+                part_end = cursor + (end - start) * len(grapheme_clusters(part)) / total_weight
+            expanded.append({
+                **segment,
+                "text": part,
+                "start": round(cursor, 3),
+                "end": round(part_end, 3),
+            })
+            cursor = part_end
+    return expanded
+
+
 class SubtitleBurner:
     def __init__(self, progress_callback: Optional[Callable[[str, float], None]] = None):
         self.progress_callback = progress_callback
@@ -145,7 +188,8 @@ class SubtitleBurner:
         # Auto Blur follows the reference image: compact, readable text whose
         # size does not become oversized on a tall 9:16 video.
         if auto_blur:
-            scaled_font_size = 42
+            # Readable on vertical videos: approximately 78px at 1320px width.
+            scaled_font_size = max(56, min(84, int(round(video_width / 17.0))))
         else:
             scale_factor = video_height / 1080.0 if video_height > 0 else 1.0
             scaled_font_size = max(16, int(font_size_px * scale_factor))
@@ -173,6 +217,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         srt_lines = []
 
         valid_segments = [s for s in segments if s.get("text", "").strip()]
+        if auto_blur:
+            valid_segments = split_sequential_subtitle_segments(valid_segments)
         for idx, seg in enumerate(valid_segments):
             start = float(seg.get("start", 0.0))
             end = float(seg.get("end", start + 1.0))
@@ -180,7 +226,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
-            subtitle_text = wrap_subtitle_text(text)
+            subtitle_text = text if auto_blur else wrap_subtitle_text(text)
             clean_text = subtitle_text.replace("\n", "\\N")
             
             # Use \\an5\\pos(X, Y) tag for exact drag positioning matching CSS translate(-50%, -50%)!
