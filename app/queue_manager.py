@@ -124,7 +124,9 @@ class JobQueueManager:
             "voxcpm_voice_path": str(settings_manager.get("voxcpm_voice_path", "") or ""),
             "voxcpm_voice_name": str(settings_manager.get("voxcpm_voice_name", "") or ""),
             "voxcpm_reference_text": str(settings_manager.get("voxcpm_reference_text", "") or ""),
-            "output_resolution": str(output_resolution or settings_manager.get("output_resolution", "1080p") or "1080p").lower(),
+            # Keep a high-resolution master; the UI chooses the download size
+            # only after rendering has completed.
+            "output_resolution": "4k",
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
             "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }

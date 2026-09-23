@@ -42,15 +42,6 @@
           <span>Telegram Group</span>
         </a>
 
-        <!-- History Button -->
-        <button id="historyBtn" class="bv-3d-theme-btn" type="button" title="History ကြည့်မည်">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <span>History</span>
-          <span id="historyBadge" class="bv-history-badge" style="display:none;">0</span>
-        </button>
-
         <!-- Light / Dark Mode 3D Toggle Button -->
         <button id="themeToggleBtn" class="bv-3d-theme-btn" type="button" title="Light / Dark Mode ပြောင်းမည်">
           <span id="themeIcon" class="bv-theme-icon">🌙</span>
@@ -300,6 +291,11 @@
             <button id="viewVideoBtn" class="bv-solid-btn bv-solid-bevel btn-play-3d" type="button">
               ▶ Preview
             </button>
+            <select id="downloadResolutionSelect" class="bv-select-field bv-download-resolution-select" aria-label="Download resolution">
+              <option value="1080p">Download 1080p</option>
+              <option value="2k">Download 2K</option>
+              <option value="4k">Download 4K</option>
+            </select>
             <a id="downloadVideoBtn" class="bv-solid-btn bv-solid-bevel btn-download-3d" href="#" download="recap_video.mp4">
               ⬇ Video Download
             </a>
@@ -328,6 +324,13 @@
         </div>
       </div>
       <div id="queueList" class="bv-queue-list"></div>
+    </section>
+
+    <section id="historySection" class="bv-queue-panel bv-history-section" style="display:none;">
+      <div class="bv-queue-header">
+        <div class="bv-queue-title"><span>ပြီးဆုံးထားသော Videos</span><span id="historyBadge" class="bv-history-badge">0</span></div>
+      </div>
+      <div id="historyList" class="bv-history-list"><p class="bv-empty-state">History မရှိသေးပါ</p></div>
     </section>
 
     <!-- 3 Feature Cards matching BurmaVoice -->
@@ -515,9 +518,9 @@
             <label class="bv-input-label" for="autoBlurSubtitlesToggle">Original Subtitle Auto Blur</label>
             <label class="bv-toggle-row">
               <input type="checkbox" id="autoBlurSubtitlesToggle">
-              <span>Gemini Vision ဖြင့် မူရင်းစာတန်းနေရာကို frame ၃ ခု (အစ/လယ်/ဆုံး) စစ်ပြီး အပေါ်အောက်ကိုသာ အတိအကျချိန်မည်။ ဘယ်ညာကို video အပြည့်ဖုံးမည်။</span>
+              <span>Original Subtitle Auto Blur</span>
             </label>
-            <p id="autoBlurStatus" class="bv-note-text">ပိတ်ထားပါက ပုံမှန် subtitle position ကိုသုံးပါမည်။ ဖွင့်ထားပါက drag ပိတ်ပြီး ပုံထဲကလို compact font size နှင့် အများဆုံး ၂ ကြောင်းသာ သုံးပါမည်။</p>
+            <p id="autoBlurStatus" class="bv-note-text"></p>
           </div>
 
           <!-- Interactive Drag & Drop Subtitle Positioning Canvas -->
@@ -569,24 +572,6 @@
 
       </form>
 
-    </div>
-  </div>
-
-  <!-- History Modal -->
-  <div id="historyModal" class="bv-modal-overlay">
-    <div class="bv-modal-card-3d">
-      <div class="bv-modal-header">
-        <div class="bv-modal-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-modal-icon">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <span>Job History</span>
-        </div>
-        <button id="closeHistoryBtn" class="bv-modal-close-btn" type="button" title="Close">✕</button>
-      </div>
-      <div id="historyList" class="bv-history-list">
-        <p class="bv-empty-state">History မရှိသေးပါ</p>
-      </div>
     </div>
   </div>
 

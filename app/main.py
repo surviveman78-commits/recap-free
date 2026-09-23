@@ -4,6 +4,7 @@ import uuid
 import json
 import asyncio
 import threading
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -529,6 +530,38 @@ async def get_job_file(job_id: str, filename: str):
         media_type = "text/plain; charset=utf-8"
 
     return FileResponse(file_path, media_type=media_type)
+
+
+@app.get("/api/jobs/{job_id}/download")
+async def download_video_resolution(job_id: str, resolution: str = "1080p"):
+    """Create/cache the requested download size after the final video exists."""
+    if resolution.lower() not in ("1080p", "2k", "4k"):
+        raise HTTPException(status_code=400, detail="Resolution must be 1080p, 2K, or 4K.")
+    job_dir = (JOBS_DIR / job_id).resolve()
+    final_video = job_dir / "final_video.mp4"
+    if not job_dir.is_dir() or not final_video.exists():
+        raise HTTPException(status_code=404, detail="Final video is not ready.")
+
+    key = resolution.lower()
+    cached = job_dir / f"download_{key}.mp4"
+    if key == "4k":
+        return FileResponse(final_video, media_type="video/mp4", filename=f"recap_{job_id}_4k.mp4")
+    if not cached.exists() or cached.stat().st_mtime < final_video.stat().st_mtime:
+        long_edge = {"1080p": 1920, "2k": 2560}[key]
+        scale = (
+            f"scale=w='if(gte(iw,ih),{long_edge},-2)':"
+            f"h='if(gte(iw,ih),-2,{long_edge})':flags=lanczos"
+        )
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(final_video), "-vf", scale,
+             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+             "-movflags", "+faststart", str(cached)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        if result.returncode != 0 or not cached.exists():
+            raise HTTPException(status_code=500, detail=f"Resolution export failed: {result.stderr[-1200:]}")
+    return FileResponse(cached, media_type="video/mp4", filename=f"recap_{job_id}_{key}.mp4")
 
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
