@@ -118,6 +118,8 @@ class JobQueueManager:
             "ai_mode": "local" if settings_manager.get("ai_mode", "local") == "local" else "cloud",
             "subtitle_pos_x": subtitle_pos_x if subtitle_pos_x is not None else float(settings_manager.get("subtitle_pos_x", 50.0)),
             "subtitle_pos_y": subtitle_pos_y if subtitle_pos_y is not None else float(settings_manager.get("subtitle_pos_y", 82.0)),
+            "auto_blur_subtitles": bool(settings_manager.get("auto_blur_subtitles", False)),
+            "auto_blur_padding_pct": float(settings_manager.get("auto_blur_padding_pct", 1.5)),
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
             "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }
@@ -206,6 +208,8 @@ class JobQueueManager:
             font_size_px=job_data["font_size_px"], font_style=job_data["font_style"],
             pos_x_pct=job_data["subtitle_pos_x"], pos_y_pct=job_data["subtitle_pos_y"],
             enable_subtitles=job_data["enable_subtitles"],
+            auto_blur_subtitles=job_data.get("auto_blur_subtitles", False),
+            auto_blur_padding_pct=job_data.get("auto_blur_padding_pct", 1.5),
         )
         with self.lock:
             self.jobs[job_id].update(

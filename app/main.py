@@ -72,6 +72,8 @@ class SettingsUpdateRequest(BaseModel):
     font_style: Optional[str] = None
     subtitle_pos_x: Optional[float] = None
     subtitle_pos_y: Optional[float] = None
+    auto_blur_subtitles: Optional[bool] = None
+    auto_blur_padding_pct: Optional[float] = None
 
 
 class JobCreateRequest(BaseModel):

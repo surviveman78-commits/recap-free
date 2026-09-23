@@ -16,6 +16,7 @@ from app.pipeline.local_translator import LocalNLLBTranslator
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.audio_mixer import AudioMixer
 from app.pipeline.subtitle_burner import SubtitleBurner
+from app.pipeline.gemini_blur_detector import GeminiSubtitleBandDetector, padded_band
 
 # Exact Burmese stage labels
 STAGES = [
@@ -92,7 +93,9 @@ class PipelineOrchestrator:
         font_style: str = "Myanmar Text",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
-        enable_subtitles: bool = True
+        enable_subtitles: bool = True,
+        auto_blur_subtitles: bool = False,
+        auto_blur_padding_pct: float = 1.5
     ) -> Dict[str, Any]:
         try:
             self.status = "running"
@@ -230,6 +233,21 @@ class PipelineOrchestrator:
             burner = SubtitleBurner(
                 progress_callback=lambda msg, pct: self._notify(stage_7, 7, msg, pct)
             )
+            blur_band = None
+            if enable_subtitles and auto_blur_subtitles:
+                self._notify(stage_7, 7, "မူရင်းစာတန်းနေရာကို Gemini Vision ဖြင့် frame ၃ ခုစစ်နေပါသည်...", 5.0)
+                detector = GeminiSubtitleBandDetector(
+                    api_key=gemini_api_key,
+                    progress_callback=lambda msg, pct: self._notify(stage_7, 7, msg, pct),
+                )
+                detection = detector.detect(video_file, self.job_dir)
+                blur_band = padded_band(detection, auto_blur_padding_pct)
+                if blur_band:
+                    pos_x_pct = 50.0
+                    pos_y_pct = (blur_band["top_percent"] + blur_band["bottom_percent"]) / 2.0
+                    self._notify(stage_7, 7, "မူရင်းစာတန်း band ကို အတိအကျဖုံးပြီး ဘာသာပြန်စာတန်းထည့်နေပါသည်...", 55.0)
+                else:
+                    self._notify(stage_7, 7, "မူရင်း hardcoded စာတန်းမတွေ့ပါ။ Blur မထည့်ဘဲ ဆက်လုပ်နေပါသည်...", 55.0)
             if enable_subtitles:
                 self._notify(stage_7, 7, "စာတန်းထိုး ထည့်သွင်းနေပါသည်...", 15.0)
                 final_video = burner.burn(
@@ -239,7 +257,9 @@ class PipelineOrchestrator:
                     font_size_px=font_size_px,
                     font_style=font_style,
                     pos_x_pct=pos_x_pct,
-                    pos_y_pct=pos_y_pct
+                    pos_y_pct=pos_y_pct,
+                    blur_band=blur_band,
+                    auto_blur=bool(blur_band)
                 )
             else:
                 self._notify(stage_7, 7, "စာတန်းထိုးဖိုင် (SRT) ထုတ်ယူနေပါသည်...", 50.0)

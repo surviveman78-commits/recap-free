@@ -1533,6 +1533,25 @@ html.dark .toast.success {
   gap: 10px;
 }
 
+.bv-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.bv-toggle-row input {
+  margin-top: 4px;
+  accent-color: var(--primary);
+}
+
+.auto-blur-locked {
+  opacity: 0.48;
+  pointer-events: none;
+  filter: grayscale(0.35);
+}
+
 .bv-toggle-label {
   font-size: 0.9rem;
   font-weight: 600;

@@ -35,6 +35,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "subtitle_pos_x": 50,
     "subtitle_pos_y": 82,
     "enable_subtitles": True,
+    "auto_blur_subtitles": False,
+    "auto_blur_padding_pct": 1.5,
 }
 
 

@@ -44,6 +44,7 @@ def format_srt_timestamp(seconds: float) -> str:
 def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> str:
     """Wrap only the rendered subtitle; the original segment text stays unchanged for TTS."""
     text = unicodedata.normalize("NFC", " ".join(str(text).split()))
+    max_lines = 2
     if len(text) <= max_chars:
         return text
     words = text.split(" ")
@@ -58,11 +59,15 @@ def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> st
             current = candidate
     if current:
         lines.append(current)
-    if len(lines) <= max_lines:
+    if len(lines) == 2:
         return "\n".join(lines)
-    # Burmese often has no spaces; split long residue by characters as a last resort.
+    # Burmese often has no spaces. Keep exactly two lines and split at the
+    # nearest safe Unicode boundary instead of producing a third line.
     compact = "".join(lines)
-    return "\n".join(compact[i:i + max_chars] for i in range(0, len(compact), max_chars))
+    cut = min(len(compact) - 1, max_chars)
+    while cut < len(compact) and unicodedata.combining(compact[cut]):
+        cut += 1
+    return f"{compact[:cut]}\n{compact[cut:]}"
 
 
 class SubtitleBurner:
@@ -126,7 +131,8 @@ class SubtitleBurner:
         font_size_px: int = 36,
         font_style: str = "Noto Sans Myanmar",
         pos_x_pct: float = 50.0,
-        pos_y_pct: float = 82.0
+        pos_y_pct: float = 82.0,
+        auto_blur: bool = False
     ) -> (Path, Path):
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -137,9 +143,13 @@ class SubtitleBurner:
         target_x = int(video_width * (pos_x_pct / 100.0))
         target_y = int(video_height * (pos_y_pct / 100.0))
 
-        # Scaled font size relative to video height (base 1080p)
-        scale_factor = video_height / 1080.0 if video_height > 0 else 1.0
-        scaled_font_size = max(16, int(font_size_px * scale_factor))
+        # Auto Blur follows the reference image: compact, readable text whose
+        # size does not become oversized on a tall 9:16 video.
+        if auto_blur:
+            scaled_font_size = 42
+        else:
+            scale_factor = video_height / 1080.0 if video_height > 0 else 1.0
+            scaled_font_size = max(16, int(font_size_px * scale_factor))
         outline_size = max(2, int(scaled_font_size * 0.12))
 
         ass_color = hex_to_ass_color(font_color)
@@ -198,7 +208,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         font_size_px: int = 36,
         font_style: str = "Noto Sans Myanmar",
         pos_x_pct: float = 50.0,
-        pos_y_pct: float = 82.0
+        pos_y_pct: float = 82.0,
+        blur_band: Optional[Dict[str, float]] = None,
+        auto_blur: bool = False
     ) -> Path:
         video_path = Path(video_path)
         if not video_path.exists():
@@ -222,7 +234,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             font_size_px=font_size_px,
             font_style=font_style,
             pos_x_pct=pos_x_pct,
-            pos_y_pct=pos_y_pct
+            pos_y_pct=pos_y_pct,
+            auto_blur=auto_blur
         )
 
         encoder_name = get_active_encoder_name()
@@ -256,12 +269,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             fonts_dir_arg = f":fontsdir='{clean_fonts_dir}'"
 
         sub_filter = f"subtitles='{sub_rel}'{fonts_dir_arg}"
+        if blur_band:
+            blur_top = max(0, min(height - 1, int(height * float(blur_band["top_percent"]) / 100.0)))
+            blur_bottom = max(blur_top + 1, min(height, int(height * float(blur_band["bottom_percent"]) / 100.0)))
+            blur_height = blur_bottom - blur_top
+            filter_graph = (
+                f"[0:v]split=2[base][blur_src];"
+                f"[blur_src]crop=iw:{blur_height}:0:{blur_top},boxblur=12:2[blurred];"
+                f"[base][blurred]overlay=0:{blur_top}:shortest=1[covered];"
+                f"[covered]{sub_filter}[vout]"
+            )
+            filter_args = ["-filter_complex", filter_graph, "-map", "[vout]", "-map", "0:a?", "-c:a", "copy"]
+        else:
+            filter_args = ["-vf", sub_filter, "-c:a", "copy"]
 
         cmd = [
             "ffmpeg", "-y",
             "-i", str(video_path.name),
-            "-vf", sub_filter,
-            "-c:a", "copy",
+            *filter_args,
             *encoder_args,
             str(output_path.name)
         ]
@@ -281,8 +306,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 fallback_cmd = [
                     "ffmpeg", "-y",
                     "-i", str(video_path.name),
-                    "-vf", sub_filter,
-                    "-c:a", "copy",
+                    *filter_args,
                     "-c:v", "libx264",
                     "-preset", "fast",
                     "-crf", "17",

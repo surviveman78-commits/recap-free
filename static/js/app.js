@@ -93,6 +93,8 @@ const fontSizeRange = document.getElementById("fontSizeRange");
 const fontSizeDisplay = document.getElementById("fontSizeDisplay");
 const fontColorPicker = document.getElementById("fontColorPicker");
 const fontColorHex = document.getElementById("fontColorHex");
+const autoBlurSubtitlesToggle = document.getElementById("autoBlurSubtitlesToggle");
+const autoBlurStatus = document.getElementById("autoBlurStatus");
 
 const dragCanvasContainer = document.getElementById("dragCanvasContainer");
 const draggableSubtitle = document.getElementById("draggableSubtitle");
@@ -102,6 +104,16 @@ const posYLabel = document.getElementById("posYLabel");
 const resetPosBtn = document.getElementById("resetPosBtn");
 const ratio916Btn = document.getElementById("ratio916Btn");
 const ratio169Btn = document.getElementById("ratio169Btn");
+
+function applyAutoBlurUi(enabled) {
+  const positionField = dragCanvasContainer ? dragCanvasContainer.closest(".bv-setting-field") : null;
+  if (positionField) positionField.classList.toggle("auto-blur-locked", Boolean(enabled));
+  if (autoBlurStatus) {
+    autoBlurStatus.textContent = enabled
+      ? "Auto Blur ဖွင့်ထားပါသည် — Gemini သတ်မှတ်သော band အလယ်မှာ စာတန်းကို fixed ထားပြီး drag ရွှေ့ခြင်း ပိတ်ထားပါသည်။"
+      : "ပိတ်ထားပါက ပုံမှန် subtitle position ကိုသုံးပါမည်။"
+  }
+}
 
 const inputSection = document.getElementById("inputSection");
 const toggleLinkBtn = document.getElementById("toggleLinkBtn");
@@ -224,7 +236,8 @@ async function autoSaveSubtitleSettings() {
         subtitle_pos_y: subPosY,
         font_style: fontStyleSelect.value,
         font_size_px: parseInt(fontSizeRange.value, 10),
-        font_color: fontColorPicker.value
+        font_color: fontColorPicker.value,
+        auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)
       })
     });
   } catch (e) {
@@ -233,7 +246,7 @@ async function autoSaveSubtitleSettings() {
 }
 
 function handleDragMove(e) {
-  if (!isDraggingSubtitle) return;
+  if (!isDraggingSubtitle || (autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)) return;
   const rect = dragCanvasContainer.getBoundingClientRect();
   const clientX = e.clientX || (e.touches && e.touches[0].clientX);
   const clientY = e.clientY || (e.touches && e.touches[0].clientY);
@@ -243,8 +256,8 @@ function handleDragMove(e) {
   updateSubtitleBadgePosition(rawX, rawY);
 }
 
-draggableSubtitle.addEventListener("mousedown", (e) => { isDraggingSubtitle = true; e.preventDefault(); });
-draggableSubtitle.addEventListener("touchstart", () => { isDraggingSubtitle = true; }, { passive: true });
+draggableSubtitle.addEventListener("mousedown", (e) => { if (autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked) return; isDraggingSubtitle = true; e.preventDefault(); });
+draggableSubtitle.addEventListener("touchstart", () => { if (!(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)) isDraggingSubtitle = true; }, { passive: true });
 window.addEventListener("mousemove", handleDragMove);
 window.addEventListener("touchmove", handleDragMove, { passive: true });
 window.addEventListener("mouseup", () => { if (isDraggingSubtitle) { isDraggingSubtitle = false; autoSaveSubtitleSettings(); } });
@@ -275,6 +288,12 @@ fontSizeRange.addEventListener("input", updateSubtitleVisualPreview);
 fontSizeRange.addEventListener("change", autoSaveSubtitleSettings);
 fontColorPicker.addEventListener("input", (e) => { fontColorHex.innerText = e.target.value.toUpperCase(); updateSubtitleVisualPreview(); });
 fontColorPicker.addEventListener("change", autoSaveSubtitleSettings);
+if (autoBlurSubtitlesToggle) {
+  autoBlurSubtitlesToggle.addEventListener("change", () => {
+    applyAutoBlurUi(autoBlurSubtitlesToggle.checked);
+    autoSaveSubtitleSettings();
+  });
+}
 
 // ──────────────────────────────────────────────
 // Load Fonts
@@ -392,6 +411,10 @@ async function loadSettings() {
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
     if (appSettings.font_size_px) { fontSizeRange.value = appSettings.font_size_px; fontSizeDisplay.innerText = `${appSettings.font_size_px}px`; }
     if (appSettings.font_style && fontStyleSelect.querySelector(`option[value="${appSettings.font_style}"]`)) fontStyleSelect.value = appSettings.font_style;
+    if (autoBlurSubtitlesToggle) {
+      autoBlurSubtitlesToggle.checked = Boolean(appSettings.auto_blur_subtitles);
+      applyAutoBlurUi(autoBlurSubtitlesToggle.checked);
+    }
     if (appSettings.subtitle_pos_x !== undefined && appSettings.subtitle_pos_y !== undefined) updateSubtitleBadgePosition(appSettings.subtitle_pos_x, appSettings.subtitle_pos_y);
     if (appSettings.voxcpm_voice_name) currentRefAudioName.innerText = appSettings.voxcpm_voice_name;
     if (appSettings.voxcpm_reference_text) voxcpmRefText.value = appSettings.voxcpm_reference_text;
@@ -453,7 +476,8 @@ settingsForm.addEventListener("submit", async (e) => {
     font_size_px: parseInt(fontSizeRange.value, 10),
     font_style: fontStyleSelect.value,
     subtitle_pos_x: subPosX,
-    subtitle_pos_y: subPosY
+    subtitle_pos_y: subPosY,
+    auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)
   };
   const groqVal = groqApiKey.value.trim();
   if (groqVal && !groqVal.includes("*")) payload.groq_api_key = groqVal;
