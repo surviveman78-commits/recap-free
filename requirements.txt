@@ -14,4 +14,4 @@ huggingface_hub>=0.23.0
 librosa>=0.10.0
 torchaudio
 sentencepiece
-
+burmese-tools>=0.1.2

@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, Callable, Tuple
 
 from google import genai
 from google.genai import types
+from app.pipeline.burmese_text import normalize_myanmar_text
 
 TARGET_LANGUAGE_NAMES = {
     "my": "Burmese (မြန်မာဘာသာ)",
@@ -86,7 +87,7 @@ class GeminiRewriter:
                 "id": src["id"],
                 "start": float(src["start"]),
                 "end": float(src["end"]),
-                "text": str(dst.get("text", "")).strip(),
+                "text": normalize_myanmar_text(str(dst.get("text", "")).strip()),
             }
             for src, dst in zip(source, output)
         ]

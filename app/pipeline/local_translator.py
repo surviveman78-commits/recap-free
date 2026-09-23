@@ -13,6 +13,8 @@ TARGET_LANGS = {
     "hi": "hin_Deva", "id": "ind_Latn",
 }
 
+from app.pipeline.burmese_text import normalize_myanmar_text
+
 
 class LocalNLLBTranslator:
     _model = None
@@ -113,7 +115,7 @@ class LocalNLLBTranslator:
             for original, text in zip(source_segments[start:start + batch_size], results):
                 translated.append({
                     "id": original["id"], "start": float(original["start"]), "end": float(original["end"]),
-                    "text": text.strip(),
+                    "text": normalize_myanmar_text(text.strip()),
                 })
             if self.progress_callback:
                 self.progress_callback(f"Local NLLB ဘာသာပြန်နေပါသည်... ({len(translated)}/{len(source_segments)})", min(95.0, 15.0 + len(translated) / len(source_segments) * 80.0))

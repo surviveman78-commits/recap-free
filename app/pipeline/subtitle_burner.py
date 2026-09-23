@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional, Callable
 
 from app.config import CUSTOM_FONTS_DIR, settings_manager
 from app.pipeline.gpu_utils import get_video_encoder_args, get_active_encoder_name
+from app.pipeline.burmese_text import grapheme_clusters, normalize_myanmar_text
 
 
 def hex_to_ass_color(hex_str: str) -> str:
@@ -43,7 +44,7 @@ def format_srt_timestamp(seconds: float) -> str:
 
 def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> str:
     """Wrap only the rendered subtitle; the original segment text stays unchanged for TTS."""
-    text = unicodedata.normalize("NFC", " ".join(str(text).split()))
+    text = normalize_myanmar_text(" ".join(str(text).split()))
     max_lines = 2
     if len(text) <= max_chars:
         return text
@@ -63,11 +64,9 @@ def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> st
         return "\n".join(lines)
     # Burmese often has no spaces. Keep exactly two lines and split at the
     # nearest safe Unicode boundary instead of producing a third line.
-    compact = "".join(lines)
-    cut = min(len(compact) - 1, max_chars)
-    while cut < len(compact) and unicodedata.combining(compact[cut]):
-        cut += 1
-    return f"{compact[:cut]}\n{compact[cut:]}"
+    compact_clusters = grapheme_clusters("".join(lines))
+    cut = min(max(1, max_chars), len(compact_clusters) - 1)
+    return f"{''.join(compact_clusters[:cut])}\n{''.join(compact_clusters[cut:])}"
 
 
 class SubtitleBurner:
@@ -177,7 +176,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for idx, seg in enumerate(valid_segments):
             start = float(seg.get("start", 0.0))
             end = float(seg.get("end", start + 1.0))
-            text = seg.get("text", "").strip()
+            text = normalize_myanmar_text(seg.get("text", "").strip())
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
