@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import os
 from typing import List
 
 try:
@@ -15,15 +16,14 @@ _MYANMAR_MARKS = set("\u102b\u102c\u102d\u102e\u102f\u1030\u1031\u1032\u1033\u10
 
 
 def _looks_like_zawgyi(text: str) -> bool:
-    """Conservative heuristic; do not rewrite clearly valid Unicode Burmese."""
+    """Only enable conversion when the user explicitly marks input as Zawgyi."""
     if not text or _burmese_tools is None:
         return False
-    # These are strong Zawgyi ordering signals, not ordinary Unicode marks.
-    return bool(re.search(r"[\u1060-\u109f]", text) or re.search(r"ေ[\u1000-\u102a]", text))
+    return os.getenv("RECAP_INPUT_ENCODING", "unicode").strip().lower() == "zawgyi"
 
 
 def normalize_myanmar_text(text: str) -> str:
-    """Return NFC Myanmar text with optional Zawgyi conversion and bad spaces removed."""
+    """Return NFC Myanmar text; Zawgyi conversion is explicit, never guessed."""
     value = unicodedata.normalize("NFC", str(text or ""))
     if _looks_like_zawgyi(value):
         try:
