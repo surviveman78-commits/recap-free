@@ -19,6 +19,12 @@ from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available, get_encoder_hardware_desc
 from app.queue_manager import job_queue_manager, EDGE_MAX_CONCURRENT, VOXCPM_MAX_CONCURRENT
+from app.voice_clone_manager import (
+    create_job as create_voice_clone_job,
+    get_job as get_voice_clone_job,
+    list_jobs as list_voice_clone_jobs,
+    VOICE_CLONE_DIR,
+)
 
 
 def _font_family_from_file(font_path: Path) -> str:
@@ -269,6 +275,61 @@ async def upload_reference_audio(
     }
 
 
+@app.get("/api/voiceclone/jobs")
+async def list_voice_clone_history():
+    return {"jobs": list_voice_clone_jobs()}
+
+
+@app.get("/api/voiceclone/jobs/{job_id}")
+async def get_voice_clone_status(job_id: str):
+    job = get_voice_clone_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Voice Clone job not found")
+    return job
+
+
+@app.post("/api/voiceclone/jobs")
+async def create_voice_clone(
+    reference_audio: UploadFile = File(...),
+    reference_text: str = Form(...),
+    script: str = Form(...),
+):
+    if not reference_audio.filename:
+        raise HTTPException(status_code=400, detail="Reference audio file is required.")
+    if not reference_text.strip():
+        raise HTTPException(status_code=400, detail="Reference Text ထည့်ပါ။")
+    if not script.strip():
+        raise HTTPException(status_code=400, detail="ပြောစေချင်တဲ့စာသား ထည့်ပါ။")
+    ext = Path(reference_audio.filename).suffix.lower()
+    allowed = (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".opus", ".aac", ".webm")
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail="Unsupported reference audio format.")
+    reference_dir = VOICE_CLONE_DIR / "references"
+    reference_dir.mkdir(parents=True, exist_ok=True)
+    reference_path = reference_dir / f"ref_{uuid.uuid4().hex[:10]}{ext}"
+    content = await reference_audio.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Reference audio is empty.")
+    if len(content) > 200 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Reference audio is too large (200 MB maximum).")
+    reference_path.write_bytes(content)
+    job_id = create_voice_clone_job(
+        str(reference_path), Path(reference_audio.filename).name, reference_text, script
+    )
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.get("/api/voiceclone/jobs/{job_id}/file")
+async def download_voice_clone(job_id: str):
+    job = get_voice_clone_job(job_id)
+    if not job or job.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="Completed Voice Clone audio not found")
+    output_path = Path(job.get("output_path", ""))
+    if not output_path.is_file() or VOICE_CLONE_DIR not in output_path.parents:
+        raise HTTPException(status_code=404, detail="Voice Clone audio file not found")
+    return FileResponse(output_path, media_type="audio/wav", filename=f"voice_clone_{job_id}.wav")
+
+
 @app.get("/api/gpu")
 async def get_gpu_status():
     """Returns GPU hardware acceleration status and active video encoder."""
@@ -317,11 +378,8 @@ async def get_job_status(job_id: str):
 @app.post("/api/jobs")
 async def create_job(payload: JobCreateRequest):
     ai_mode = settings_manager.get("ai_mode", "local")
-    if ai_mode != "local":
-        if not settings_manager.get_groq_key():
-            raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
-        if not settings_manager.get_gemini_key():
-            raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+    if ai_mode != "local" and not settings_manager.get_gemini_key():
+        raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     if not payload.video_url:
         raise HTTPException(status_code=400, detail="Video Link ထည့်သွင်းပေးပါ။")
@@ -385,11 +443,8 @@ async def create_job_upload(
     output_resolution: Optional[str] = Form(None)
 ):
     ai_mode = settings_manager.get("ai_mode", "local")
-    if ai_mode != "local":
-        if not settings_manager.get_groq_key():
-            raise HTTPException(status_code=400, detail="Groq API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
-        if not settings_manager.get_gemini_key():
-            raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
+    if ai_mode != "local" and not settings_manager.get_gemini_key():
+        raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     updates = {}
     if target_language:

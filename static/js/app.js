@@ -74,6 +74,7 @@ const tabContents = document.querySelectorAll(".bv-tab-content, .tab-content");
 
 const groqApiKey = document.getElementById("groqApiKey");
 const geminiApiKey = document.getElementById("geminiApiKey");
+const outputResolution = document.getElementById("outputResolution");
 const settingsTargetLang = document.getElementById("settingsTargetLang");
 const aiMode = document.getElementById("aiMode");
 const voiceEngine = document.getElementById("voiceEngine");
@@ -125,7 +126,6 @@ const videoFileInput = document.getElementById("videoFileInput");
 const dropZone = document.getElementById("dropZone");
 const uploadFileName = document.getElementById("uploadFileName");
 const dashboardTargetLang = document.getElementById("dashboardTargetLang");
-const outputResolution = document.getElementById("outputResolution");
 const startBtn = document.getElementById("startBtn");
 
 const progressSection = document.getElementById("progressSection");
@@ -146,9 +146,13 @@ const currentJobIdLabel = document.getElementById("currentJobIdLabel");
 
 const toastContainer = document.getElementById("toastContainer");
 
+const historyBtn = document.getElementById("historyBtn");
 const historyBadge = document.getElementById("historyBadge");
-const historyList = document.getElementById("historyList");
 const historySection = document.getElementById("historySection");
+const historyModal = document.getElementById("historyModal");
+const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+const historyList = document.getElementById("historyList");
+const historyModalList = document.getElementById("historyModalList");
 
 const queuePanel = document.getElementById("queuePanel");
 const queueList = document.getElementById("queueList");
@@ -402,11 +406,11 @@ async function loadSettings() {
     const res = await fetch("/api/settings");
     if (!res.ok) return;
     appSettings = await res.json();
-    if (appSettings.groq_api_key) groqApiKey.placeholder = appSettings.groq_api_key;
+    if (appSettings.groq_api_key && groqApiKey) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
+    if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
     if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
-    if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
     if (appSettings.voice_engine) { voiceEngine.value = appSettings.voice_engine; toggleVoiceEngine(appSettings.voice_engine); }
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
     if (appSettings.font_size_px) { fontSizeRange.value = appSettings.font_size_px; fontSizeDisplay.innerText = `${appSettings.font_size_px}px`; }
@@ -468,7 +472,6 @@ settingsForm.addEventListener("submit", async (e) => {
   const payload = {
     ai_mode: aiMode ? aiMode.value : "local",
     target_language: settingsTargetLang.value,
-    output_resolution: outputResolution ? outputResolution.value : "1080p",
     voice_engine: voiceEngine.value,
     edge_tts_language: edgeLanguageSelect.value,
     edge_tts_voice: edgeVoiceSelect.value,
@@ -478,9 +481,10 @@ settingsForm.addEventListener("submit", async (e) => {
     font_style: fontStyleSelect.value,
     subtitle_pos_x: subPosX,
     subtitle_pos_y: subPosY,
-    auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)
+    auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
+    output_resolution: outputResolution ? outputResolution.value : "1080p"
   };
-  const groqVal = groqApiKey.value.trim();
+  const groqVal = groqApiKey ? groqApiKey.value.trim() : "";
   if (groqVal && !groqVal.includes("*")) payload.groq_api_key = groqVal;
   const geminiVal = geminiApiKey.value.trim();
   if (geminiVal && !geminiVal.includes("*")) payload.gemini_api_key = geminiVal;
@@ -499,27 +503,30 @@ cancelSettingsBtn.addEventListener("click", () => settingsModal.classList.remove
 settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) settingsModal.classList.remove("active"); });
 
 // ──────────────────────────────────────────────
-// Inline History below Queue
+// History Modal
 // ──────────────────────────────────────────────
+historyBtn.addEventListener("click", () => {
+  renderHistoryModal();
+  historyModal.classList.add("active");
+});
+closeHistoryBtn.addEventListener("click", () => historyModal.classList.remove("active"));
+historyModal.addEventListener("click", (e) => { if (e.target === historyModal) historyModal.classList.remove("active"); });
+
 function renderHistoryModal() {
   const jobs = Object.values(allJobs)
     .filter(j => j.status === "completed" || j.status === "failed")
     .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-  if (jobs.length === 0) {
-    historyList.innerHTML = `<p class="bv-empty-state">History မရှိသေးပါ</p>`;
-    return;
-  }
-  historyList.innerHTML = jobs.map(j => {
+  const html = jobs.length === 0 ? `<p class="bv-empty-state">History မရှိသေးပါ</p>` : jobs.map(j => {
     const label = j.video_url || j.uploaded_filename || j.job_id;
     const short = label.length > 55 ? label.slice(0, 52) + "..." : label;
     const icon = j.status === "completed" ? "✅" : j.status === "failed" ? "❌" : "⏳";
     const iconClass = j.status === "completed" ? "completed" : j.status === "failed" ? "failed" : "running";
     const timeStr = j.created_at ? new Date(j.created_at * 1000).toLocaleString() : "";
-    const previewUrl = `/api/jobs/${j.job_id}/files/final_video.mp4`;
+    const videoUrl = `/api/jobs/${j.job_id}/files/final_video.mp4`;
     const srtUrl = `/api/jobs/${j.job_id}/files/subtitles.srt`;
     const completedActions = j.status === "completed"
-      ? `<a class="bv-history-action-btn" href="${previewUrl}" target="_blank">▶ Preview</a>
-         <a class="bv-history-action-btn" href="${previewUrl}" download="recap_${j.job_id}.mp4">⬇ Download</a>
+      ? `<a class="bv-history-action-btn" href="${videoUrl}" target="_blank">▶ Preview</a>
+         <a class="bv-history-action-btn" href="${videoUrl}" download="recap_${j.job_id}.mp4">⬇ Video</a>
          <a class="bv-history-action-btn" href="${srtUrl}" download="subtitles_${j.job_id}.srt">📄 SRT</a>`
       : j.status === "running" || j.status === "pending"
       ? `<button class="bv-history-action-btn" onclick="switchToJob('${j.job_id}')">👁 ကြည့်မည်</button>`
@@ -533,6 +540,8 @@ function renderHistoryModal() {
       <div class="bv-history-item-actions">${completedActions}</div>
     </div>`;
   }).join("");
+  if (historyList) historyList.innerHTML = html;
+  if (historyModalList) historyModalList.innerHTML = html;
 }
 
 function updateHistoryBadge() {
@@ -540,10 +549,10 @@ function updateHistoryBadge() {
   if (count > 0) {
     historyBadge.textContent = count;
     historyBadge.style.display = "inline-block";
-    historySection.style.display = "block";
+    if (historySection) historySection.style.display = "block";
   } else {
     historyBadge.style.display = "none";
-    historySection.style.display = "none";
+    if (historySection) historySection.style.display = "none";
   }
   renderHistoryModal();
 }
@@ -584,6 +593,7 @@ function renderQueuePanel() {
 
 // Switch main view to another job
 function switchToJob(jobId) {
+  historyModal.classList.remove("active");
   const job = allJobs[jobId];
   if (!job) return;
 
@@ -773,11 +783,11 @@ function showCompletedView(jobId, summaryData) {
   progressSection.style.display = "none";
   completedSection.style.display = "block";
 
-  const previewUrl = `/api/jobs/${jobId}/files/final_video.mp4`;
+  const videoUrl = `/api/jobs/${jobId}/files/final_video.mp4`;
   const srtUrl = `/api/jobs/${jobId}/files/subtitles.srt`;
 
-  finalVideo.src = previewUrl;
-  downloadVideoBtn.href = previewUrl;
+  finalVideo.src = videoUrl;
+  downloadVideoBtn.href = videoUrl;
   downloadVideoBtn.setAttribute("download", `recap_${jobId}.mp4`);
   downloadSrtBtn.href = srtUrl;
   downloadSrtBtn.setAttribute("download", `subtitles_${jobId}.srt`);
@@ -842,8 +852,8 @@ if (viewCurrentActiveBtn) {
 // Start Pipeline & Add to Queue
 // ──────────────────────────────────────────────
 startBtn.addEventListener("click", async () => {
-  if ((appSettings.ai_mode || "local") === "cloud" && (!appSettings.has_groq_key || !appSettings.has_gemini_key)) {
-    showToast("Groq နှင့် Gemini API Key များကို Settings တွင် အရင်ထည့်သွင်းပေးပါ။", "error");
+  if ((appSettings.ai_mode || "local") === "cloud" && !appSettings.has_gemini_key) {
+    showToast("Gemini API Key ကို Settings တွင် အရင်ထည့်သွင်းပေးပါ။", "error");
     settingsModal.classList.add("active");
     return;
   }

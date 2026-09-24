@@ -9,7 +9,6 @@ from typing import Dict, Any, Optional, Callable
 
 from app.pipeline.downloader import VideoDownloader
 from app.pipeline.audio_extractor import AudioExtractor
-from app.pipeline.groq_transcriber import GroqTranscriber
 from app.pipeline.gemini_rewriter import GeminiRewriter
 from app.pipeline.local_transcriber import LocalWhisperTranscriber
 from app.pipeline.local_translator import LocalNLLBTranslator
@@ -133,20 +132,13 @@ class PipelineOrchestrator:
             self.artifacts["original_audio"] = original_audio.name
 
             # ----------------------------------------------------
-            # STAGE 3: အသံကို စာသားအဖြစ် ပြောင်းနေပါတယ်... (Groq STT)
+            # STAGE 3: အသံကို စာသားအဖြစ် ပြောင်းနေပါတယ်... (Local Whisper STT)
             # ----------------------------------------------------
             stage_3 = STAGES[2]
-            if ai_mode == "local":
-                self._notify(stage_3, 3, "Local Whisper ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
-                transcriber = LocalWhisperTranscriber(
-                    progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
-                )
-            else:
-                self._notify(stage_3, 3, "Groq API ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
-                transcriber = GroqTranscriber(
-                    api_key=groq_api_key,
-                    progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
-                )
+            self._notify(stage_3, 3, "Local Whisper ဖြင့် အသံကို စာသားပြောင်းနေပါသည်...", 15.0)
+            transcriber = LocalWhisperTranscriber(
+                progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
+            )
             groq_res = transcriber.transcribe(original_audio, self.job_dir)
             self.artifacts["transcript_json"] = "transcript.json"
             self.artifacts["transcript_txt"] = "transcript.txt"

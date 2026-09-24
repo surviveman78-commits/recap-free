@@ -467,10 +467,21 @@
             <div class="bv-3d-select-wrapper">
               <select id="aiMode" class="bv-select-field">
                 <option value="local">Local AI — Whisper + NLLB (No API key)</option>
-                <option value="cloud">Cloud API — Groq + Gemini</option>
+                <option value="cloud">Cloud API — Gemini</option>
               </select>
             </div>
             <p class="bv-note-text">Local AI model များကို Kaggle cell တွင် ကြိုတင် download လုပ်ထားရမည်။</p>
+          </div>
+          <div class="bv-setting-field">
+            <label for="outputResolution" class="bv-input-label">Final Video Resolution</label>
+            <div class="bv-3d-select-wrapper">
+              <select id="outputResolution" class="bv-select-field">
+                <option value="1080p">1080p (Full HD)</option>
+                <option value="2k">2K (2560px)</option>
+                <option value="4k">4K (3840px)</option>
+              </select>
+            </div>
+            <p class="bv-note-text">ရွေးထားသော resolution အတိုင်း FFmpeg က video ကို render လုပ်ပါမည်။</p>
           </div>
         </div>
 
@@ -592,22 +603,8 @@
               <span>Position: <strong>X: <span id="posXLabel">50%</span>, Y: <span id="posYLabel">82%</span></strong></span>
               <button type="button" id="resetPosBtn" class="bv-link-action-btn">Default နေရာသို့ ပြန်ထားမည်</button>
       </div>
-    </section>
-
-        <div class="bv-setting-field">
-          <label for="outputResolution" class="bv-input-label">Final Video Resolution</label>
-          <div class="bv-3d-select-wrapper">
-            <select id="outputResolution" class="bv-select-field">
-              <option value="1080p">1080p (Full HD)</option>
-              <option value="2k">2K (2560px)</option>
-              <option value="4k">4K (3840px)</option>
-            </select>
           </div>
-          <p class="bv-note-text">ရွေးထားသော resolution အတိုင်း FFmpeg က video ကို render လုပ်ပါမည်။</p>
         </div>
-
-    </div>
-
         <!-- TAB 4: API Keys -->
         <div id="tab-api" class="bv-tab-content">
           <div class="bv-setting-field">

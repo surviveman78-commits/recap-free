@@ -71,6 +71,7 @@
 
   <!-- Main Hero & Workspace -->
   <main class="bv-main-container">
+    <button id="voiceCloneTopDashboardBtn" type="button" class="bv-secondary-3d-btn bv-back-tools-btn">← Dashboard သို့ ပြန်သွားမည်</button>
     
     <!-- Hero Headline matching BurmaVoice -->
     <section class="bv-hero-section">
@@ -594,22 +595,16 @@
       </div>
     </section>
 
-        <div class="bv-setting-field">
-          <label for="outputResolution" class="bv-input-label">Final Video Resolution</label>
-          <div class="bv-3d-select-wrapper">
-            <select id="outputResolution" class="bv-select-field">
-              <option value="1080p">1080p (Full HD)</option>
-              <option value="2k">2K (2560px)</option>
-              <option value="4k">4K (3840px)</option>
-            </select>
-          </div>
-          <p class="bv-note-text">ရွေးထားသော resolution အတိုင်း FFmpeg က video ကို render လုပ်ပါမည်။</p>
-        </div>
-
     </div>
 
         <!-- TAB 4: API Keys -->
         <div id="tab-api" class="bv-tab-content">
+          <div class="bv-setting-field">
+            <label for="groqApiKey" class="bv-input-label">Groq API Key (Speech-to-Text)</label>
+            <input type="password" id="groqApiKey" class="bv-field-input bv-field-input-standalone" placeholder="••••••••••••" autocomplete="off">
+            <p class="bv-note-text">အသံမှ စာသားပြောင်းလဲရန် Whisper API အတွက်သာ အသုံးပြုပါသည်။</p>
+          </div>
+
           <div class="bv-setting-field">
             <label for="geminiApiKey" class="bv-input-label">Gemini API Key (Translation & Storytelling)</label>
             <input type="password" id="geminiApiKey" class="bv-field-input bv-field-input-standalone" placeholder="••••••••••••" autocomplete="off">
@@ -620,7 +615,7 @@
         <!-- Modal Footer -->
         <div class="bv-modal-footer">
           <button type="button" id="cancelSettingsBtn" class="bv-secondary-3d-btn">မလုပ်တော့ပါ</button>
-          <button type="submit" id="saveSettingsBtn" class="bv-solid-btn bv-solid-bevel btn-save-3d">Settings သိမ်းဆည်းမည်</button>
+          <button type="submit" class="bv-solid-btn bv-solid-bevel btn-save-3d">Settings သိမ်းဆည်းမည်</button>
         </div>
 
       </form>
