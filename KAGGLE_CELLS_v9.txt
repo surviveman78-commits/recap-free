@@ -12,13 +12,13 @@ v9 concurrency:
 
 သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
 
-CELL 1 — Public testing GitHub clone
+CELL 1 — Production GitHub clone
 ----------------------
 from pathlib import Path
 import shutil, subprocess, urllib.request, zipfile
 project = Path('/kaggle/working/recap-free')
 shutil.rmtree(project, ignore_errors=True)
-repo = 'https://github.com/surviveman78-commits/recap-free-auto-blur-testing.git'
+repo = 'https://github.com/surviveman78-commits/recap-free.git'
 try:
     subprocess.run(['git', 'clone', '--depth', '1', repo, str(project)], check=True)
     print('Project cloned with Git:', project)
@@ -26,11 +26,11 @@ try:
 except subprocess.CalledProcessError:
     # GitHub Git transport may temporarily return 403 for a newly published repo.
     # The public archive is equivalent and needs no token or Kaggle Secret.
-    archive = Path('/kaggle/working/recap-free-testing.zip')
+    archive = Path('/kaggle/working/recap-free.zip')
     urllib.request.urlretrieve(repo.replace('.git', '/archive/refs/heads/main.zip'), archive)
     with zipfile.ZipFile(archive) as zf:
         zf.extractall('/kaggle/working')
-    extracted = Path('/kaggle/working/recap-free-auto-blur-testing-main')
+    extracted = Path('/kaggle/working/recap-free-main')
     shutil.move(str(extracted), str(project))
     print('Project downloaded from public GitHub archive:', project)
 
