@@ -226,7 +226,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
-            subtitle_text = text if auto_blur else wrap_subtitle_text(text)
+            # Always render one subtitle line at a time; Auto Blur already
+            # splits long phrases sequentially, and normal mode follows the
+            # same no-stacking rule.
+            subtitle_text = text
             clean_text = subtitle_text.replace("\n", "\\N")
             
             # Use \\an5\\pos(X, Y) tag for exact drag positioning matching CSS translate(-50%, -50%)!
