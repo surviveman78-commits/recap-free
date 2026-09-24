@@ -1727,12 +1727,6 @@ html.dark .bv-step-chip.completed {
   margin-top: 0;
 }
 
-.bv-download-resolution-select {
-  min-width: 145px;
-  min-height: 42px;
-  font-size: 0.8rem;
-}
-
 .bv-queue-header {
   display: flex;
   align-items: center;

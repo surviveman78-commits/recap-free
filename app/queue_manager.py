@@ -124,9 +124,7 @@ class JobQueueManager:
             "voxcpm_voice_path": str(settings_manager.get("voxcpm_voice_path", "") or ""),
             "voxcpm_voice_name": str(settings_manager.get("voxcpm_voice_name", "") or ""),
             "voxcpm_reference_text": str(settings_manager.get("voxcpm_reference_text", "") or ""),
-            # Keep a high-resolution master; the UI chooses the download size
-            # only after rendering has completed.
-            "output_resolution": "4k",
+            "output_resolution": (output_resolution or settings_manager.get("output_resolution", "1080p")).lower(),
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
             "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }
@@ -263,6 +261,7 @@ class JobQueueManager:
                 "srt_url": f"/api/jobs/{job_id}/files/subtitles.srt" if (folder / "subtitles.srt").exists() else None,
                 "has_video": (folder / "final_video.mp4").exists(), "has_srt": (folder / "subtitles.srt").exists(),
                 "voice_engine": job.get("voice_engine", "edge_tts"),
+                "output_resolution": job.get("output_resolution", "1080p"),
             })
         items.sort(key=lambda x: x["created_at"], reverse=True)
         return items[:limit]

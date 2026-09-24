@@ -125,6 +125,7 @@ const videoFileInput = document.getElementById("videoFileInput");
 const dropZone = document.getElementById("dropZone");
 const uploadFileName = document.getElementById("uploadFileName");
 const dashboardTargetLang = document.getElementById("dashboardTargetLang");
+const outputResolution = document.getElementById("outputResolution");
 const startBtn = document.getElementById("startBtn");
 
 const progressSection = document.getElementById("progressSection");
@@ -139,7 +140,6 @@ const finalDurationText = document.getElementById("finalDurationText");
 const finalVideo = document.getElementById("finalVideo");
 const viewVideoBtn = document.getElementById("viewVideoBtn");
 const downloadVideoBtn = document.getElementById("downloadVideoBtn");
-const downloadResolutionSelect = document.getElementById("downloadResolutionSelect");
 const downloadSrtBtn = document.getElementById("downloadSrtBtn");
 const newJobBtn = document.getElementById("newJobBtn");
 const currentJobIdLabel = document.getElementById("currentJobIdLabel");
@@ -406,6 +406,7 @@ async function loadSettings() {
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
     if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
+    if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
     if (appSettings.voice_engine) { voiceEngine.value = appSettings.voice_engine; toggleVoiceEngine(appSettings.voice_engine); }
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
     if (appSettings.font_size_px) { fontSizeRange.value = appSettings.font_size_px; fontSizeDisplay.innerText = `${appSettings.font_size_px}px`; }
@@ -467,6 +468,7 @@ settingsForm.addEventListener("submit", async (e) => {
   const payload = {
     ai_mode: aiMode ? aiMode.value : "local",
     target_language: settingsTargetLang.value,
+    output_resolution: outputResolution ? outputResolution.value : "1080p",
     voice_engine: voiceEngine.value,
     edge_tts_language: edgeLanguageSelect.value,
     edge_tts_voice: edgeVoiceSelect.value,
@@ -513,11 +515,11 @@ function renderHistoryModal() {
     const icon = j.status === "completed" ? "✅" : j.status === "failed" ? "❌" : "⏳";
     const iconClass = j.status === "completed" ? "completed" : j.status === "failed" ? "failed" : "running";
     const timeStr = j.created_at ? new Date(j.created_at * 1000).toLocaleString() : "";
-    const videoUrl = `/api/jobs/${j.job_id}/download?resolution=1080p`;
+    const previewUrl = `/api/jobs/${j.job_id}/files/final_video.mp4`;
     const srtUrl = `/api/jobs/${j.job_id}/files/subtitles.srt`;
     const completedActions = j.status === "completed"
-      ? `<a class="bv-history-action-btn" href="${videoUrl}" target="_blank">▶ Preview</a>
-         <a class="bv-history-action-btn" href="${videoUrl}" download="recap_${j.job_id}.mp4">⬇ Video</a>
+      ? `<a class="bv-history-action-btn" href="${previewUrl}" target="_blank">▶ Preview</a>
+         <a class="bv-history-action-btn" href="${previewUrl}" download="recap_${j.job_id}.mp4">⬇ Download</a>
          <a class="bv-history-action-btn" href="${srtUrl}" download="subtitles_${j.job_id}.srt">📄 SRT</a>`
       : j.status === "running" || j.status === "pending"
       ? `<button class="bv-history-action-btn" onclick="switchToJob('${j.job_id}')">👁 ကြည့်မည်</button>`
@@ -582,7 +584,6 @@ function renderQueuePanel() {
 
 // Switch main view to another job
 function switchToJob(jobId) {
-  historyModal.classList.remove("active");
   const job = allJobs[jobId];
   if (!job) return;
 
@@ -772,12 +773,11 @@ function showCompletedView(jobId, summaryData) {
   progressSection.style.display = "none";
   completedSection.style.display = "block";
 
-  const selectedResolution = downloadResolutionSelect ? downloadResolutionSelect.value : "1080p";
-  const videoUrl = `/api/jobs/${jobId}/download?resolution=${encodeURIComponent(selectedResolution)}`;
+  const previewUrl = `/api/jobs/${jobId}/files/final_video.mp4`;
   const srtUrl = `/api/jobs/${jobId}/files/subtitles.srt`;
 
-  finalVideo.src = videoUrl;
-  downloadVideoBtn.href = videoUrl;
+  finalVideo.src = previewUrl;
+  downloadVideoBtn.href = previewUrl;
   downloadVideoBtn.setAttribute("download", `recap_${jobId}.mp4`);
   downloadSrtBtn.href = srtUrl;
   downloadSrtBtn.setAttribute("download", `subtitles_${jobId}.srt`);
@@ -792,14 +792,6 @@ function showCompletedView(jobId, summaryData) {
   fetch(srtUrl, { method: "HEAD" }).then(r => {
     downloadSrtBtn.style.display = r.ok ? "inline-flex" : "none";
   }).catch(() => { downloadSrtBtn.style.display = "none"; });
-}
-
-if (downloadResolutionSelect) {
-  downloadResolutionSelect.addEventListener("change", () => {
-    if (!activeJobId) return;
-    downloadVideoBtn.href = `/api/jobs/${activeJobId}/download?resolution=${encodeURIComponent(downloadResolutionSelect.value)}`;
-    downloadVideoBtn.setAttribute("download", `recap_${activeJobId}_${downloadResolutionSelect.value}.mp4`);
-  });
 }
 
 // ──────────────────────────────────────────────
@@ -874,6 +866,7 @@ startBtn.addEventListener("click", async () => {
         body: JSON.stringify({
           video_url: url,
           target_language: chosenTargetLang,
+          output_resolution: outputResolution ? outputResolution.value : "1080p",
           subtitle_pos_x: subPosX,
           subtitle_pos_y: subPosY,
           font_style: fontStyleSelect.value,
@@ -941,6 +934,7 @@ startBtn.addEventListener("click", async () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("target_language", chosenTargetLang);
+    formData.append("output_resolution", outputResolution ? outputResolution.value : "1080p");
     formData.append("subtitle_pos_x", subPosX);
     formData.append("subtitle_pos_y", subPosY);
     formData.append("font_style", fontStyleSelect.value);

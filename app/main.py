@@ -533,7 +533,7 @@ async def get_job_file(job_id: str, filename: str):
 
 
 @app.get("/api/jobs/{job_id}/download")
-async def download_video_resolution(job_id: str, resolution: str = "1080p"):
+def download_video_resolution(job_id: str, resolution: str = "1080p"):
     """Create/cache the requested download size after the final video exists."""
     if resolution.lower() not in ("1080p", "2k", "4k"):
         raise HTTPException(status_code=400, detail="Resolution must be 1080p, 2K, or 4K.")

@@ -206,9 +206,10 @@ class TTSEngine:
         model = VoxCPMManager.get_model(device=device)
         generate_kwargs = {
             "text": text,
-            # Lower guidance is more stable for long Burmese recap narration.
-            "cfg_value": float(os.getenv("RECAP_VOXCPM_CFG", "2.0")),
-            "inference_timesteps": int(os.getenv("RECAP_VOXCPM_STEPS", "10")),
+            # 22nd-day baseline: higher sampling steps and moderate guidance
+            # gave cleaner Burmese pronunciation and fewer late-segment cracks.
+            "cfg_value": float(os.getenv("RECAP_VOXCPM_CFG", "1.6")),
+            "inference_timesteps": int(os.getenv("RECAP_VOXCPM_STEPS", "20")),
             "retry_badcase": True,
             "normalize": True,
         }
@@ -218,11 +219,7 @@ class TTSEngine:
             # Use the uploaded sample together with its exact transcript so
             # VoxCPM follows the submitted speaker more closely. The UI/API
             # require this text before a reference audio can be saved.
-            # HIFI continuation is intentionally opt-in. It requires the
-            # reference transcript to match the uploaded audio exactly;
-            # otherwise VoxCPM can emit unstable/gibberish syllables for each
-            # short recap segment. Timbre-only cloning is the safe default.
-            if reference_text and reference_text.strip() and os.getenv("RECAP_VOXCPM_HIFI", "0") == "1":
+            if reference_text and reference_text.strip() and os.getenv("RECAP_VOXCPM_HIFI", "1") == "1":
                 generate_kwargs["prompt_wav_path"] = clean_ref
                 generate_kwargs["prompt_text"] = reference_text.strip()
 

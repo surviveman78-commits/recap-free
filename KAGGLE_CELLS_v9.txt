@@ -117,11 +117,11 @@ os.environ['RECAP_NLLB_DEVICE'] = 'cuda:1' if __import__('torch').cuda.device_co
 os.environ['RECAP_TRANSLATION_BATCH'] = '4'
 os.environ['RECAP_NLLB_BEAMS'] = '5'
 
-# Stable VoxCPM voice cloning: use uploaded reference timbre only by default.
-# Set this to 1 only when the reference text exactly matches the audio word-for-word.
-os.environ['RECAP_VOXCPM_HIFI'] = '0'
-os.environ['RECAP_VOXCPM_CFG'] = '2.0'
-os.environ['RECAP_VOXCPM_STEPS'] = '10'
+# 22nd-day VoxCPM baseline: cleaner Burmese pronunciation and fewer
+# late-segment cracks when the uploaded reference text is exact.
+os.environ['RECAP_VOXCPM_HIFI'] = '1'
+os.environ['RECAP_VOXCPM_CFG'] = '1.6'
+os.environ['RECAP_VOXCPM_STEPS'] = '20'
 
 print('VoxCPM2:', voxcpm_dir)
 print('Whisper:', whisper_dir)
@@ -215,6 +215,6 @@ else:
 --------
 - Cell 1 မှာ production `main` ကို clone လုပ်ထားပါသည်။
 - API key များကို ဒီ file/cell ထဲ မထည့်ထားပါ။
-- `RECAP_VOXCPM_HIFI=0` ကို မပြောင်းပါနှင့်။ Reference audio ထဲက စာသားကို တိတိကျကျသေချာပေးနိုင်မှသာ `1` ပြောင်းစမ်းပါ။
+- `RECAP_VOXCPM_HIFI=1` သုံးထားပါသည်။ Reference audio ထဲက စာသားကို တိတိကျကျထည့်ပြီးမှ Voice Clone job စပါ။
 - 4K download ရွေးချယ်မှုသည် video ပြီးဆုံးပြီးနောက်မှသာ အလုပ်လုပ်ပါမည်။
 ```
