@@ -1,7 +1,7 @@
 RECAP FREE — KAGGLE RUN CELLS v11 LOCAL AI
 =================================
 
-v9 concurrency:
+v11 concurrency + font/animation/error UI:
 - Edge TTS: အများဆုံး ၃ ပုဒ် တစ်ပြိုင်တည်း
 - VoxCPM2: အများဆုံး ၁ ပုဒ် တစ်ပြိုင်တည်း; GPU တစ်လုံးကိုသာ အသုံးပြုမည်
 - Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
@@ -44,6 +44,12 @@ CELL 2 — Install
 import edge_tts, voxcpm, faster_whisper, transformers
 print('Edge TTS, VoxCPM2, Local Whisper, Local NLLB dependencies READY')
 
+# Tracked fonts are copied into data/custom_fonts automatically when the app starts.
+font_assets = Path('/kaggle/working/recap-free/assets/fonts')
+required_fonts = [font_assets / 'Z10-Cartoon.ttf', font_assets / 'MyanmarThuriya.ttf', font_assets / 'unicode_font_styles.zip']
+assert all(p.is_file() for p in required_fonts), f'Missing bundled font asset: {required_fonts}'
+print('Bundled fonts READY: Z10-Cartoon default, MyanmarThuriya priority, Unicode collection included')
+
 CELL 3 — Download all local models before UI
 ----------------------------------------------
 %cd /kaggle/working/recap-free
@@ -82,7 +88,7 @@ nvenc_test = subprocess.run([
     '-frames:v', '1', '-c:v', 'h264_nvenc', '-f', 'null', '-'
 ], capture_output=True, text=True)
 if nvenc_test.returncode != 0:
-    print('WARNING: NVENC မရပါ။ Video rendering သည် libx264 CPU fallback သုံးပါမည်။\n' + nvenc_test.stderr[-1000:])
+    print('WARNING: NVENC မရပါ။ Video rendering သည် libx264 CPU fallback သုံးပါမည်။ Raw FFmpeg diagnostics ကို UI မှာ မပြပါ။')
 else:
     print('GPU/NVENC preflight OK — video rendering will prefer h264_nvenc.')
 
@@ -100,8 +106,11 @@ UI အသုံးပြုရန်
 3. Voice Engine ကို VoxCPM2 ထားပြီး video ၁ ပုဒ်ကိုသာ တစ်ချိန်တည်းလုပ်ပါမည်။
 4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
 5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
-6. Font ကို Noto Sans Myanmar သို့မဟုတ် Padauk ရွေးပါ။
-7. Cloud translation သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Gemini API key တစ်ခုတည်း ထည့်ပါ။ Speech-to-Text အတွက် API key မလိုပါ။
+6. Font default သည် **Z10-Cartoon** ဖြစ်ပြီး **MyanmarThuriya** က ဒုတိယ priority ဖြစ်ပါသည်။ Settings ထဲတွင် Burmese live preview ဖြင့် font ရွေးပါ။
+7. Subtitle Animation တွင် Fade / Slide / Pop / None ရွေးနိုင်ပါသည်။ Default သည် Fade ဖြစ်ပါသည်။
+8. Subtitle size သည် 1080p = 70px, 2K = 94px, 4K = 140px ဖြစ်ပြီး ဘေးနှစ်ဘက် safe margin ၁၀% ထားပါသည်။
+9. NVENC မရပါက libx264 CPU fallback သုံးမည်။ UI တွင် raw `libcuda.so.1` / FFmpeg log မပြဘဲ ရှင်းလင်းသော Burmese error သာ ပြပါမည်။
+10. Cloud translation သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Gemini API key တစ်ခုတည်း ထည့်ပါ။ Speech-to-Text အတွက် API key မလိုပါ။
 
 UI မှာ Edge TTS ၃ jobs နဲ့ VoxCPM2 ၁ job ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
 
