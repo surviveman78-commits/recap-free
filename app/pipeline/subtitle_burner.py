@@ -43,30 +43,34 @@ def format_srt_timestamp(seconds: float) -> str:
 
 
 def wrap_subtitle_text(text: str, max_chars: int = 28, max_lines: int = 2) -> str:
-    """Wrap only the rendered subtitle; the original segment text stays unchanged for TTS."""
+    """Wrap rendered text at Burmese phrase boundaries, never by half-length."""
     text = normalize_myanmar_text(" ".join(str(text).split()))
-    max_lines = 2
-    if len(text) <= max_chars:
+    if max_lines != 2 or len(grapheme_clusters(text)) <= max_chars:
         return text
+
+    particles = {"ကို", "သည်", "မှာ", "က", "နဲ့", "တွေ", "များ", "၏", "တော့", "ပဲ", "ဘဲ"}
     words = text.split(" ")
-    lines = []
-    current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if current and len(candidate) > max_chars and len(lines) < max_lines - 1:
-            lines.append(current)
-            current = word
-        else:
-            current = candidate
-    if current:
-        lines.append(current)
-    if len(lines) == 2:
-        return "\n".join(lines)
-    # Burmese often has no spaces. Keep exactly two lines and split at the
-    # nearest safe Unicode boundary instead of producing a third line.
-    compact_clusters = grapheme_clusters("".join(lines))
-    cut = min(max(1, max_chars), len(compact_clusters) - 1)
-    return f"{''.join(compact_clusters[:cut])}\n{''.join(compact_clusters[cut:])}"
+    candidates = []
+    for index in range(1, len(words)):
+        if words[index] in particles:
+            continue
+        left = " ".join(words[:index]).strip()
+        right = " ".join(words[index:]).strip()
+        left_len = len(grapheme_clusters(left))
+        right_len = len(grapheme_clusters(right))
+        if left_len <= max_chars and right_len <= max_chars:
+            boundary_bonus = 12 if left and left[-1] in "၊။!?…,:;—-" else 0
+            short_line_penalty = 0 if right_len >= max(4, int((left_len + right_len) * 0.28)) else 30
+            balance = abs(left_len - right_len)
+            candidates.append((balance + short_line_penalty - boundary_bonus, left, right))
+
+    if candidates:
+        _, left, right = min(candidates, key=lambda item: item[0])
+        return f"{left}\n{right}"
+
+    clusters = grapheme_clusters(text)
+    cut = min(max(1, max_chars), len(clusters) - 1)
+    return f"{''.join(clusters[:cut]).strip()}\n{''.join(clusters[cut:]).strip()}"
 
 
 def split_sequential_subtitle_segments(
