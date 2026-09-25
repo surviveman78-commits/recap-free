@@ -164,7 +164,7 @@
         <div id="linkInputGroup" class="bv-input-group">
           <label for="videoUrlInput" class="bv-input-label">
             <span>Video Link</span>
-            <span class="bv-label-hint">YouTube, TikTok, Facebook, Twitter URL</span>
+            <span class="bv-label-hint">TikTok, Facebook, Twitter URL · YouTube ကို file upload ဖြင့်သာသုံးပါ</span>
           </label>
           <div class="bv-3d-input-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bv-input-prefix-icon"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -477,11 +477,13 @@
             <div class="bv-3d-select-wrapper">
               <select id="outputResolution" class="bv-select-field">
                 <option value="1080p">1080p (Full HD)</option>
+                <option value="tiktok1080">TikTok 1080p (1080×1920 · 9:16)</option>
                 <option value="2k">2K (2560px)</option>
-                <option value="4k">4K (3840px)</option>
+              <option value="4k">4K (3840px)</option>
+              <option value="tiktok2k">TikTok 2K (1440×2560 · 9:16)</option>
               </select>
             </div>
-            <p class="bv-note-text">ရွေးထားသော resolution အတိုင်း FFmpeg က video ကို render လုပ်ပါမည်။</p>
+            <p class="bv-note-text">TikTok 1080p = 1080×1920 / 12 Mbps၊ TikTok 2K = 1440×2560 / 20 Mbps ဖြစ်ပြီး H.264 နဲ့ render လုပ်ပါမည်။ YouTube video များကို Link မသုံးဘဲ Local Video File မှတင်ပါ။</p>
           </div>
         </div>
 

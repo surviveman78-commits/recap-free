@@ -17,7 +17,7 @@ let voiceCatalog = { languages: [], voices_by_language: {} };
 let systemFonts = [];
 let fontFiles = {};
 let targetLanguages = [];
-const RESOLUTION_FONT_SIZES = { "1080p": 70, "2k": 94, "4k": 140 };
+const RESOLUTION_FONT_SIZES = { "1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140 };
 let currentEventSource = null;
 let currentInputMode = "link";
 

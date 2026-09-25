@@ -195,7 +195,7 @@ class SubtitleBurner:
         ass_path = output_dir / "subtitles.ass"
         srt_path = output_dir / "subtitles.srt"
 
-        resolution_sizes = {"1080p": 70, "2k": 94, "4k": 140}
+        resolution_sizes = {"1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140}
         preset = resolution_sizes.get(str(output_resolution or "").lower())
         if preset is None:
             longest_side = max(video_width, video_height)
@@ -303,11 +303,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             self.progress_callback("စာတန်းထိုးနေပါတယ်...", 15.0)
 
         width, height = self._get_video_dimensions(video_path)
+        output_profile = str(output_resolution or "").lower()
+        is_tiktok = output_profile in {"tiktok1080", "tiktok2k"}
+        render_width, render_height = {
+            "tiktok1080": (1080, 1920),
+            "tiktok2k": (1440, 2560),
+        }.get(output_profile, (width, height))
         ass_path, srt_path = self.generate_subtitles(
             segments=segments,
             output_dir=video_path.parent,
-            video_width=width,
-            video_height=height,
+            video_width=render_width,
+            video_height=render_height,
             font_color=font_color,
             font_size_px=font_size_px,
             font_style=font_style,
@@ -320,6 +326,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         encoder_name = get_active_encoder_name()
         encoder_args = get_video_encoder_args(cq=18, crf=17)
+        tiktok_bitrate_args = {
+            "tiktok1080": ("12M", "16M", "24M"),
+            "tiktok2k": ("20M", "25M", "40M"),
+        }.get(output_profile)
+        tiktok_level = "5.0" if output_profile == "tiktok2k" else "4.2"
+        tiktok_encoder_args = [
+            "-b:v", tiktok_bitrate_args[0],
+            "-maxrate", tiktok_bitrate_args[1],
+            "-bufsize", tiktok_bitrate_args[2],
+            "-r", "30",
+            "-profile:v", "high",
+            "-level", tiktok_level,
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+        ] if tiktok_bitrate_args else []
 
         if self.progress_callback:
             self.progress_callback(f"စာတန်းထိုးနေပါတယ်... (FFmpeg {encoder_name} rendering)", 50.0)
@@ -351,24 +372,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
         sub_filter = f"ass='{ass_filter_path}'{fonts_dir_arg}"
         if blur_band:
-            blur_top = max(0, min(height - 1, int(height * float(blur_band["top_percent"]) / 100.0)))
-            blur_bottom = max(blur_top + 1, min(height, int(height * float(blur_band["bottom_percent"]) / 100.0)))
+            blur_top = max(0, min(render_height - 1, int(render_height * float(blur_band["top_percent"]) / 100.0)))
+            blur_bottom = max(blur_top + 1, min(render_height, int(render_height * float(blur_band["bottom_percent"]) / 100.0)))
             blur_height = blur_bottom - blur_top
+            source_filter = f"scale={render_width}:{render_height}:force_original_aspect_ratio=increase,crop={render_width}:{render_height}"
             filter_graph = (
-                f"[0:v]split=2[base][blur_src];"
+                f"[0:v]{source_filter}[scaled];"
+                f"[scaled]split=2[base][blur_src];"
                 f"[blur_src]crop=iw:{blur_height}:0:{blur_top},boxblur=12:2[blurred];"
                 f"[base][blurred]overlay=0:{blur_top}:shortest=1[covered];"
                 f"[covered]{sub_filter}[vout]"
             )
-            filter_args = ["-filter_complex", filter_graph, "-map", "[vout]", "-map", "0:a?", "-c:a", "copy"]
+            filter_args = ["-filter_complex", filter_graph, "-map", "[vout]", "-map", "0:a?", "-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
         else:
-            filter_args = ["-vf", sub_filter, "-c:a", "copy"]
+            if is_tiktok:
+                video_filter = f"scale={render_width}:{render_height}:force_original_aspect_ratio=increase,crop={render_width}:{render_height},{sub_filter}"
+            else:
+                video_filter = sub_filter
+            filter_args = ["-vf", video_filter, "-c:a", "aac" if is_tiktok else "copy"]
+            if is_tiktok:
+                filter_args.extend(["-b:a", "192k", "-ar", "48000"])
 
         cmd = [
             "ffmpeg", "-y",
             "-i", str(video_path.name),
             *filter_args,
             *encoder_args,
+            *tiktok_encoder_args,
             str(output_path.name)
         ]
 
@@ -390,7 +420,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     *filter_args,
                     "-c:v", "libx264",
                     "-preset", "fast",
-                    "-crf", "17",
+                    *( ["-crf", "18"] if not is_tiktok else ["-b:v", tiktok_bitrate_args[0], "-maxrate", tiktok_bitrate_args[1], "-bufsize", tiktok_bitrate_args[2], "-r", "30", "-profile:v", "high", "-level", tiktok_level, "-movflags", "+faststart"] ),
                     "-pix_fmt", "yuv420p",
                     str(output_path.name)
                 ]

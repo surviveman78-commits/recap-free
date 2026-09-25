@@ -373,6 +373,12 @@ async def create_job(payload: JobCreateRequest):
 
     if not payload.video_url:
         raise HTTPException(status_code=400, detail="Video Link ထည့်သွင်းပေးပါ။")
+    lowered_url = payload.video_url.lower()
+    if "youtube.com" in lowered_url or "youtu.be" in lowered_url:
+        raise HTTPException(
+            status_code=400,
+            detail="YouTube video များကို Link ဖြင့်မဒေါင်းတော့ပါ။ Video ကို file အဖြစ် download လုပ်ပြီး Local Video File မှတင်ပါ။",
+        )
 
     updates = {}
     if payload.target_language:
@@ -389,7 +395,7 @@ async def create_job(payload: JobCreateRequest):
         updates["font_color"] = payload.font_color
     if payload.subtitle_animation in ("none", "fade", "slide", "pop"):
         updates["subtitle_animation"] = payload.subtitle_animation
-    if payload.output_resolution in ("1080p", "2k", "4k"):
+    if payload.output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k"):
         updates["output_resolution"] = payload.output_resolution
     if updates:
         settings_manager.save(updates)
@@ -453,7 +459,7 @@ async def create_job_upload(
         updates["font_color"] = font_color
     if subtitle_animation in ("none", "fade", "slide", "pop"):
         updates["subtitle_animation"] = subtitle_animation
-    if output_resolution in ("1080p", "2k", "4k"):
+    if output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k"):
         updates["output_resolution"] = output_resolution
     if updates:
         settings_manager.save(updates)
