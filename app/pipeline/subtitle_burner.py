@@ -246,7 +246,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
-            subtitle_text = text.replace("\n", " ").strip()
+            # Keep each timed event sequential, but allow a phrase to occupy
+            # two balanced lines instead of forcing a single tiny line.
+            subtitle_text = wrap_subtitle_text(text, max_chars=safe_chars, max_lines=2)
             clean_text = subtitle_text.replace("\n", "\\N")
             
             if animation == "fade":

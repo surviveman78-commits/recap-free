@@ -142,6 +142,7 @@ class GeminiRewriter:
         mode: str = "translate",
         target_language: str = "my",
         model_name: str = DEFAULT_MODEL,
+        source_duration: float = 0.0,
     ) -> Dict[str, Any]:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -151,6 +152,18 @@ class GeminiRewriter:
 
         lang_name = TARGET_LANGUAGE_NAMES.get(target_language, target_language)
         source_text = groq_result.get("text", "")
+        short_video_rule = ""
+        if 0 < source_duration < 60:
+            short_video_rule = f"""
+SHORT-VIDEO NARRATION RULE:
+The source video is only {source_duration:.1f} seconds long. Expand the faithful
+spoken translation so the estimated voice-over duration is at least 61 seconds.
+Do this by naturally restating and connecting every event, action, cause, and
+detail already present in the source, in a native conversational recap style.
+Do not invent facts, opinions, names, dialogue, or events. Do not repeat the
+same sentence mechanically. Keep the original segment ids and timestamps; put
+the expanded wording into the corresponding segment texts.
+"""
         if self.progress_callback:
             self.progress_callback("Transcript အပြည့်ကို ဖတ်ပြီး video အမျိုးအစား ခွဲနေပါသည်...", 10.0)
 
@@ -172,6 +185,7 @@ Rules:
 * Make every sentence smooth and easy to understand when heard through TTS.
 * Think like a native speaker explaining what happened in a movie to a friend.
 * Translate the story, not the words.
+{short_video_rule}
 
 SOURCE-COVERAGE SAFETY:
 * Translate every sentence and every proposition in every source segment.

@@ -120,6 +120,7 @@ class PipelineOrchestrator:
                 raise ValueError("ဗီဒီယို Link သို့မဟုတ် Video ဖိုင် ထည့်သွင်းပေးပါ။")
 
             self.artifacts["downloaded_video"] = video_file.name
+            source_duration = self._get_media_duration(video_file)
 
             # ----------------------------------------------------
             # STAGE 2: အသံဖိုင် ထုတ်ယူနေပါတယ်...
@@ -175,7 +176,8 @@ class PipelineOrchestrator:
                     groq_result=groq_res,
                     output_dir=self.job_dir,
                     mode=gemini_mode,
-                    target_language=target_language
+                    target_language=target_language,
+                    source_duration=source_duration
                 )
             if str(target_language or "").lower().startswith("my"):
                 # Burmese TTS voices should receive Myanmar numerals. ASCII
