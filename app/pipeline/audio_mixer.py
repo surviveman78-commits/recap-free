@@ -117,7 +117,7 @@ class AudioMixer:
         if result.returncode != 0:
             # If GPU encoding failed, retry once with CPU libx264 as safety fallback
             if "h264_nvenc" in encoder_args or "h264_mf" in encoder_args:
-                print(f"[GPU WARNING] GPU rendering failed, retrying with CPU (libx264): {result.stderr[:100]}")
+                print("[GPU WARNING] GPU rendering failed; retrying with CPU libx264.")
                 fallback_cmd = [
                     "ffmpeg", "-y",
                     "-i", str(video_path),
@@ -138,9 +138,9 @@ class AudioMixer:
                 ]
                 fallback_res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 if fallback_res.returncode != 0:
-                    raise RuntimeError(f"FFmpeg video speed adjustment failed: {fallback_res.stderr}")
+                    raise RuntimeError("Video rendering failed after CPU fallback. Please check the video format and FFmpeg setup.")
             else:
-                raise RuntimeError(f"FFmpeg video speed adjustment failed: {result.stderr}")
+                raise RuntimeError("Video speed adjustment failed. Please check the video format and FFmpeg setup.")
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise RuntimeError("Audio mixing produced empty or missing file.")

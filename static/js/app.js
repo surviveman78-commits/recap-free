@@ -103,11 +103,20 @@ const dragCanvasContainer = document.getElementById("dragCanvasContainer");
 const draggableSubtitle = document.getElementById("draggableSubtitle");
 const previewSubText = document.getElementById("previewSubText");
 const fontLivePreview = document.getElementById("fontLivePreview");
+const subtitleAnimationSelect = document.getElementById("subtitleAnimationSelect");
 const posXLabel = document.getElementById("posXLabel");
 const posYLabel = document.getElementById("posYLabel");
 const resetPosBtn = document.getElementById("resetPosBtn");
 const ratio916Btn = document.getElementById("ratio916Btn");
 const ratio169Btn = document.getElementById("ratio169Btn");
+
+function cleanUserStatusMessage(message) {
+  const text = String(message || "");
+  if (/h264_nvenc|libcuda\.so|Error while filtering|Nothing was written|FFmpeg/i.test(text)) {
+    return "ဗီဒီယို rendering မအောင်မြင်ပါ။ GPU မရသဖြင့် CPU fallback ကို စမ်းပြီးပါပြီ။ Video format သို့မဟုတ် FFmpeg setup ကို စစ်ပါ။";
+  }
+  return text;
+}
 
 function applyAutoBlurUi(enabled) {
   const positionField = dragCanvasContainer ? dragCanvasContainer.closest(".bv-setting-field") : null;
@@ -437,6 +446,7 @@ async function loadSettings() {
     if (appSettings.groq_api_key && groqApiKey) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
     if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
+    if (appSettings.subtitle_animation && subtitleAnimationSelect) subtitleAnimationSelect.value = appSettings.subtitle_animation;
     if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
     if (appSettings.voice_engine) { voiceEngine.value = appSettings.voice_engine; toggleVoiceEngine(appSettings.voice_engine); }
@@ -511,6 +521,7 @@ settingsForm.addEventListener("submit", async (e) => {
     subtitle_pos_x: subPosX,
     subtitle_pos_y: subPosY,
     auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
+    subtitle_animation: subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade",
     output_resolution: outputResolution ? outputResolution.value : "1080p"
   };
   const groqVal = groqApiKey ? groqApiKey.value.trim() : "";
@@ -559,7 +570,7 @@ function renderHistoryModal() {
          <a class="bv-history-action-btn" href="${srtUrl}" download="subtitles_${j.job_id}.srt">📄 SRT</a>`
       : j.status === "running" || j.status === "pending"
       ? `<button class="bv-history-action-btn" onclick="switchToJob('${j.job_id}')">👁 ကြည့်မည်</button>`
-      : `<span style="font-size:0.72rem;color:var(--text-muted);">${j.error ? j.error.slice(0, 40) : "Failed"}</span>`;
+      : `<span style="font-size:0.72rem;color:var(--text-muted);">${j.error ? cleanUserStatusMessage(j.error).slice(0, 40) : "Failed"}</span>`;
     return `<div class="bv-history-item">
       <div class="bv-history-item-icon ${iconClass}">${icon}</div>
       <div class="bv-history-item-body">
@@ -632,7 +643,7 @@ function switchToJob(jobId) {
   if (job.status === "completed") {
     showCompletedView(jobId, job.summary || {});
   } else if (job.status === "failed") {
-    showToast(`Job ${jobId}: ${job.error || "Failed"}`, "error");
+    showToast(`Job ${jobId}: ${cleanUserStatusMessage(job.error || "Failed")}`, "error");
   } else {
     // running / pending / queued
     inputSection.style.display = "none";
@@ -684,11 +695,8 @@ async function checkGpuStatus() {
     const data = await res.json();
     const gpuEl = document.getElementById("gpuStatusText");
     if (gpuEl) {
-      if (data.gpu_accelerated) {
-        gpuEl.innerText = `AI Recap Studio • ⚡ ${data.hardware}`;
-      } else {
-        gpuEl.innerText = `AI Recap Studio • ${data.hardware}`;
-      }
+      const hardware = data.gpu_accelerated ? "NVIDIA NVENC (GPU)" : "libx264 (CPU Fallback)";
+      gpuEl.innerText = `AI Recap Studio • ${data.gpu_accelerated ? "⚡ " : ""}${hardware}`;
     }
   } catch (e) {}
 }
@@ -772,8 +780,9 @@ videoFileInput.addEventListener("change", () => {
 // Progress UI
 // ──────────────────────────────────────────────
 function updateProgressUI(stageName, stageIdx, percent, message) {
-  if (currentStageLabel) currentStageLabel.innerText = stageName || "...";
-  if (stageDetailMsg) stageDetailMsg.innerText = message || stageName || "...";
+  const safeMessage = cleanUserStatusMessage(message || stageName || "...");
+  if (currentStageLabel) currentStageLabel.innerText = cleanUserStatusMessage(stageName || "...");
+  if (stageDetailMsg) stageDetailMsg.innerText = safeMessage;
   const totalStages = BURMESE_STAGES.length;
   const totalOverall = Math.min(100, Math.max(0, ((stageIdx - 1) / totalStages) * 100 + (percent / totalStages)));
   if (totalPercentLabel) totalPercentLabel.innerText = `${Math.round(totalOverall)}%`;
@@ -911,6 +920,7 @@ startBtn.addEventListener("click", async () => {
           font_style: fontStyleSelect.value,
           font_size_px: parseInt(fontSizeRange.value, 10),
           font_color: fontColorPicker.value,
+          subtitle_animation: subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade",
           subtitle_enabled: subtitleEnabled
         })
       });
@@ -979,6 +989,7 @@ startBtn.addEventListener("click", async () => {
     formData.append("font_style", fontStyleSelect.value);
     formData.append("font_size_px", parseInt(fontSizeRange.value, 10));
     formData.append("font_color", fontColorPicker.value);
+    formData.append("subtitle_animation", subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade");
     formData.append("subtitle_enabled", subtitleEnabled ? "true" : "false");
 
     try {
@@ -1055,7 +1066,7 @@ function startJobPolling(jobId) {
         delete jobPollers[jobId];
         if (job.status === "completed" && jobId === activeJobId && job.summary) showCompletedView(jobId, job.summary);
         if (job.status === "failed" && jobId === activeJobId) {
-          showToast(`မအောင်မြင်ပါ: ${job.error || "Job failed"}`, "error");
+          showToast(`မအောင်မြင်ပါ: ${cleanUserStatusMessage(job.error || "Job failed")}`, "error");
           inputSection.style.display = "block";
           progressSection.style.display = "none";
           saveActiveJobToStorage(null);
@@ -1079,7 +1090,7 @@ function connectSSE(jobId) {
       const stage = event.stage;
       const stageIdx = event.stage_index || 1;
       const progress = event.progress || 0;
-      const message = event.message || stage;
+      const message = cleanUserStatusMessage(event.message || stage);
       const data = event.data || {};
 
       // Update allJobs state

@@ -2,7 +2,6 @@ import os
 import json
 import time
 import shutil
-import traceback
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable
@@ -92,6 +91,7 @@ class PipelineOrchestrator:
         font_style: str = "Z10-Cartoon",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
+        subtitle_animation: str = "fade",
         enable_subtitles: bool = True,
         auto_blur_subtitles: bool = False,
         auto_blur_padding_pct: float = 1.5,
@@ -251,6 +251,7 @@ class PipelineOrchestrator:
                     font_style=font_style,
                     pos_x_pct=pos_x_pct,
                     pos_y_pct=pos_y_pct,
+                    subtitle_animation=subtitle_animation,
                     blur_band=blur_band,
                     auto_blur=bool(blur_band),
                     output_resolution=output_resolution
@@ -268,6 +269,7 @@ class PipelineOrchestrator:
                     font_style=font_style,
                     pos_x_pct=pos_x_pct,
                     pos_y_pct=pos_y_pct,
+                    subtitle_animation=subtitle_animation,
                     output_resolution=output_resolution
                 )
                 final_video = self.job_dir / "final_video.mp4"
@@ -307,10 +309,13 @@ class PipelineOrchestrator:
         except Exception as e:
             self.status = "failed"
             err_msg = str(e)
-            stack = traceback.format_exc()
-            print(f"Error in pipeline job {self.job_id}:\n{stack}")
-            sanitized_msg = err_msg.replace(groq_api_key, "***") if groq_api_key else err_msg
+            if any(token in err_msg for token in ("h264_nvenc", "libcuda.so", "Error while filtering", "Nothing was written", "FFmpeg")):
+                sanitized_msg = "ဗီဒီယို rendering မအောင်မြင်ပါ။ GPU မရသဖြင့် CPU fallback ကို စမ်းပြီးပါပြီ။ Video format သို့မဟုတ် FFmpeg setup ကို စစ်ပါ။"
+            else:
+                sanitized_msg = err_msg
+            sanitized_msg = sanitized_msg.replace(groq_api_key, "***") if groq_api_key else sanitized_msg
             if gemini_api_key:
                 sanitized_msg = sanitized_msg.replace(gemini_api_key, "***")
+            print(f"Pipeline job {self.job_id} failed: {sanitized_msg}")
             self._notify("မအောင်မြင်ပါ", -1, f"အမှားဖြစ်ပေါ်ပါသည်: {sanitized_msg}", 0.0, data={"error": sanitized_msg})
             raise RuntimeError(sanitized_msg)

@@ -103,7 +103,7 @@ class JobQueueManager:
     def submit_job(self, video_url=None, uploaded_video_path=None, target_language=None,
                    enable_subtitles=True, font_color=None, font_size_px=None,
                    font_style=None, subtitle_pos_x=None, subtitle_pos_y=None,
-                   output_resolution=None) -> str:
+                   subtitle_animation=None, output_resolution=None) -> str:
         job_id = f"job_{uuid.uuid4().hex[:8]}"
         job_dir = JOBS_DIR / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -116,6 +116,7 @@ class JobQueueManager:
             "font_color": font_color or settings_manager.get("font_color", "#FFFFFF"),
             "font_size_px": font_size_px or int(settings_manager.get("font_size_px", 70)),
             "font_style": font_style or settings_manager.get("font_style", "Z10-Cartoon"),
+            "subtitle_animation": subtitle_animation or settings_manager.get("subtitle_animation", "fade"),
             "ai_mode": "local" if settings_manager.get("ai_mode", "local") == "local" else "cloud",
             "subtitle_pos_x": subtitle_pos_x if subtitle_pos_x is not None else float(settings_manager.get("subtitle_pos_x", 50.0)),
             "subtitle_pos_y": subtitle_pos_y if subtitle_pos_y is not None else float(settings_manager.get("subtitle_pos_y", 82.0)),
@@ -209,6 +210,7 @@ class JobQueueManager:
             target_language=job_data["target_language"], font_color=job_data["font_color"],
             font_size_px=job_data["font_size_px"], font_style=job_data["font_style"],
             pos_x_pct=job_data["subtitle_pos_x"], pos_y_pct=job_data["subtitle_pos_y"],
+            subtitle_animation=job_data.get("subtitle_animation", "fade"),
             enable_subtitles=job_data["enable_subtitles"],
             auto_blur_subtitles=job_data.get("auto_blur_subtitles", False),
             auto_blur_padding_pct=job_data.get("auto_blur_padding_pct", 1.5),

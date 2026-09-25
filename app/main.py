@@ -71,6 +71,7 @@ class SettingsUpdateRequest(BaseModel):
     font_color: Optional[str] = None
     font_size_px: Optional[int] = None
     font_style: Optional[str] = None
+    subtitle_animation: Optional[str] = None
     subtitle_pos_x: Optional[float] = None
     subtitle_pos_y: Optional[float] = None
     auto_blur_subtitles: Optional[bool] = None
@@ -84,6 +85,7 @@ class JobCreateRequest(BaseModel):
     subtitle_pos_x: Optional[float] = None
     subtitle_pos_y: Optional[float] = None
     font_style: Optional[str] = None
+    subtitle_animation: Optional[str] = None
     font_size_px: Optional[int] = None
     font_color: Optional[str] = None
     subtitle_enabled: Optional[bool] = True
@@ -385,6 +387,8 @@ async def create_job(payload: JobCreateRequest):
         updates["font_size_px"] = payload.font_size_px
     if payload.font_color:
         updates["font_color"] = payload.font_color
+    if payload.subtitle_animation in ("none", "fade", "slide", "pop"):
+        updates["subtitle_animation"] = payload.subtitle_animation
     if payload.output_resolution in ("1080p", "2k", "4k"):
         updates["output_resolution"] = payload.output_resolution
     if updates:
@@ -402,6 +406,7 @@ async def create_job(payload: JobCreateRequest):
         font_style=payload.font_style,
         subtitle_pos_x=payload.subtitle_pos_x,
         subtitle_pos_y=payload.subtitle_pos_y,
+        subtitle_animation=payload.subtitle_animation,
         output_resolution=payload.output_resolution
     )
 
@@ -425,6 +430,7 @@ async def create_job_upload(
     font_style: Optional[str] = Form(None),
     font_size_px: Optional[int] = Form(None),
     font_color: Optional[str] = Form(None),
+    subtitle_animation: Optional[str] = Form(None),
     subtitle_enabled: Optional[str] = Form(None),
     output_resolution: Optional[str] = Form(None)
 ):
@@ -445,6 +451,8 @@ async def create_job_upload(
         updates["font_size_px"] = font_size_px
     if font_color:
         updates["font_color"] = font_color
+    if subtitle_animation in ("none", "fade", "slide", "pop"):
+        updates["subtitle_animation"] = subtitle_animation
     if output_resolution in ("1080p", "2k", "4k"):
         updates["output_resolution"] = output_resolution
     if updates:
@@ -474,6 +482,7 @@ async def create_job_upload(
         font_style=font_style,
         subtitle_pos_x=subtitle_pos_x,
         subtitle_pos_y=subtitle_pos_y,
+        subtitle_animation=subtitle_animation,
         output_resolution=output_resolution
     )
 

@@ -175,6 +175,7 @@ class SubtitleBurner:
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
         auto_blur: bool = False,
+        subtitle_animation: str = "fade",
         output_resolution: Optional[str] = None
     ) -> (Path, Path):
         output_dir = Path(output_dir)
@@ -223,6 +224,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         safe_width = max(1, video_width - (safe_margin_x * 2))
         safe_chars = max(8, int(safe_width / max(1, scaled_font_size * 0.95)))
         valid_segments = split_sequential_subtitle_segments(valid_segments, max_chars=safe_chars)
+        animation = str(subtitle_animation or "fade").lower()
+        if animation not in {"none", "fade", "slide", "pop"}:
+            animation = "fade"
         for idx, seg in enumerate(valid_segments):
             start = float(seg.get("start", 0.0))
             end = float(seg.get("end", start + 1.0))
@@ -233,8 +237,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             subtitle_text = text.replace("\n", " ").strip()
             clean_text = subtitle_text.replace("\n", "\\N")
             
-            # Use \\an5\\pos(X, Y) tag for exact drag positioning matching CSS translate(-50%, -50%)!
-            ass_lines.append(f"Dialogue: 0,{ass_start},{ass_end},Default,,0,0,0,,{{\\an5\\pos({target_x},{target_y})}}{clean_text}\n")
+            if animation == "fade":
+                tags = f"{{\\an5\\pos({target_x},{target_y})\\fad(180,180)}}"
+            elif animation == "slide":
+                tags = f"{{\\an5\\move({target_x - max(24, scaled_font_size // 2)},{target_y},{target_x},{target_y},0,180)}}"
+            elif animation == "pop":
+                tags = f"{{\\an5\\pos({target_x},{target_y})\\fscx90\\fscy90\\t(0,160,\\fscx100\\fscy100)}}"
+            else:
+                tags = f"{{\\an5\\pos({target_x},{target_y})}}"
+            ass_lines.append(f"Dialogue: 0,{ass_start},{ass_end},Default,,0,0,0,,{tags}{clean_text}\n")
 
             srt_start = format_srt_timestamp(start)
             srt_end = format_srt_timestamp(end)
@@ -260,6 +271,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         pos_y_pct: float = 82.0,
         blur_band: Optional[Dict[str, float]] = None,
         auto_blur: bool = False,
+        subtitle_animation: str = "fade",
         output_resolution: Optional[str] = None
     ) -> Path:
         video_path = Path(video_path)
@@ -286,6 +298,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             pos_x_pct=pos_x_pct,
             pos_y_pct=pos_y_pct,
             auto_blur=auto_blur,
+            subtitle_animation=subtitle_animation,
             output_resolution=output_resolution
         )
 
@@ -353,7 +366,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if result.returncode != 0:
             # If GPU encoding failed, retry once with CPU libx264 as safety fallback
             if "h264_nvenc" in encoder_args or "h264_mf" in encoder_args:
-                print(f"[GPU WARNING] GPU subtitle burning failed, retrying with CPU (libx264): {result.stderr[:100]}")
+                print("[GPU WARNING] GPU subtitle burning failed; retrying with CPU libx264.")
                 fallback_cmd = [
                     "ffmpeg", "-y",
                     "-i", str(video_path.name),
@@ -366,9 +379,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 ]
                 fallback_res = subprocess.run(fallback_cmd, cwd=str(video_path.parent), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 if fallback_res.returncode != 0:
-                    raise RuntimeError(f"FFmpeg subtitle burning failed: {fallback_res.stderr}")
+                    raise RuntimeError("Video rendering failed after CPU fallback. Please check the video format and FFmpeg setup.")
             else:
-                raise RuntimeError(f"FFmpeg subtitle burning failed: {result.stderr}")
+                raise RuntimeError("Video subtitle rendering failed. Please check the video format and FFmpeg setup.")
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise RuntimeError("Subtitle burning produced empty or missing file.")

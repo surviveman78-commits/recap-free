@@ -60,6 +60,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "font_color": "#FFFFFF",
     "font_size_px": 70,
     "font_style": "Z10-Cartoon",
+    "subtitle_animation": "fade",
     "custom_font_name": "",
     "custom_font_path": "",
     "subtitle_pos_x": 50,
@@ -96,6 +97,8 @@ class SettingsManager:
         if settings.get("font_style") in {"Noto Sans Myanmar", "Myanmar Text", "Padauk"}:
             settings["font_style"] = DEFAULT_SETTINGS["font_style"]
             settings["font_size_px"] = DEFAULT_SETTINGS["font_size_px"]
+        if settings.get("subtitle_animation") not in {"none", "fade", "slide", "pop"}:
+            settings["subtitle_animation"] = DEFAULT_SETTINGS["subtitle_animation"]
         return settings
 
     def get_all(self, mask: bool = True) -> Dict[str, Any]:
