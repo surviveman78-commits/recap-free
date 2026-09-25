@@ -7,6 +7,8 @@ import os
 from typing import List
 
 _BURMESE_DIGITS = str.maketrans("0123456789", "၀၁၂၃၄၅၆၇၈၉")
+_DIGIT_VALUES = str.maketrans("၀၁၂၃၄၅၆၇၈၉", "0123456789")
+_NUMBER_WORDS = ("သုည", "တစ်", "နှစ်", "သုံး", "လေး", "ငါး", "ခြောက်", "ခုနစ်", "ရှစ်", "ကိုး")
 
 try:
     from burmese_tools import tools as _burmese_tools
@@ -44,6 +46,59 @@ def normalize_burmese_digits(text: str) -> str:
     return str(text or "").translate(_BURMESE_DIGITS)
 
 
+def _under_thousand_to_burmese(number: int) -> str:
+    parts = []
+    hundreds, remainder = divmod(number, 100)
+    if hundreds:
+        parts.append(_NUMBER_WORDS[hundreds] + "ရာ")
+        if remainder:
+            parts[-1] += "့"
+    if remainder:
+        tens, ones = divmod(remainder, 10)
+        if tens:
+            parts.append("ဆယ်" if tens == 1 else _NUMBER_WORDS[tens] + "ဆယ်")
+            if ones:
+                parts[-1] += "့"
+        if ones:
+            parts.append(_NUMBER_WORDS[ones])
+    return "".join(parts) or _NUMBER_WORDS[0]
+
+
+def burmese_number_to_words(number: int) -> str:
+    """Spell an integer in natural Burmese words for speech synthesis."""
+    number = int(number)
+    if number == 0:
+        return _NUMBER_WORDS[0]
+    if number < 0:
+        return "အနုတ်" + burmese_number_to_words(-number)
+    parts = []
+    for divisor, label in ((1_000_000_000, "ဘီလီယံ"), (1_000_000, "သန်း"), (1_000, "ထောင်"), (1, "")):
+        amount, number = divmod(number, divisor)
+        if amount:
+            if divisor == 1:
+                parts.append(_under_thousand_to_burmese(amount))
+            else:
+                parts.append(_under_thousand_to_burmese(amount) + label)
+                if number:
+                    parts[-1] += "့"
+    return "".join(parts)
+
+
+def prepare_burmese_tts_text(text: str) -> str:
+    """Replace numeric tokens with Burmese words before Edge TTS/VoxCPM input."""
+    value = normalize_myanmar_text(text)
+    value = value.translate(_DIGIT_VALUES)
+
+    def replace(match):
+        token = match.group(0).replace(",", "")
+        if "." in token:
+            whole, fraction = token.split(".", 1)
+            return burmese_number_to_words(int(whole or 0)) + " ဒသမ " + " ".join(_NUMBER_WORDS[int(d)] for d in fraction)
+        return burmese_number_to_words(int(token))
+
+    return re.sub(r"(?<![A-Za-z])\d+(?:\.\d+)?", replace, value)
+
+
 def grapheme_clusters(text: str) -> List[str]:
     """Split text without separating Myanmar combining marks from their base."""
     clusters: List[str] = []
@@ -55,4 +110,4 @@ def grapheme_clusters(text: str) -> List[str]:
     return clusters
 
 
-__all__ = ["normalize_myanmar_text", "normalize_burmese_digits", "grapheme_clusters"]
+__all__ = ["normalize_myanmar_text", "normalize_burmese_digits", "burmese_number_to_words", "prepare_burmese_tts_text", "grapheme_clusters"]
