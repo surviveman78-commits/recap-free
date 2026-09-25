@@ -88,8 +88,8 @@ class PipelineOrchestrator:
         gemini_mode: str = "translate",
         target_language: str = "my",
         font_color: str = "#FFFFFF",
-        font_size_px: int = 36,
-        font_style: str = "Myanmar Text",
+        font_size_px: int = 70,
+        font_style: str = "Z10-Cartoon",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
         enable_subtitles: bool = True,
@@ -252,7 +252,8 @@ class PipelineOrchestrator:
                     pos_x_pct=pos_x_pct,
                     pos_y_pct=pos_y_pct,
                     blur_band=blur_band,
-                    auto_blur=bool(blur_band)
+                    auto_blur=bool(blur_band),
+                    output_resolution=output_resolution
                 )
             else:
                 self._notify(stage_7, 7, "စာတန်းထိုးဖိုင် (SRT) ထုတ်ယူနေပါသည်...", 50.0)
@@ -266,7 +267,8 @@ class PipelineOrchestrator:
                     font_size_px=font_size_px,
                     font_style=font_style,
                     pos_x_pct=pos_x_pct,
-                    pos_y_pct=pos_y_pct
+                    pos_y_pct=pos_y_pct,
+                    output_resolution=output_resolution
                 )
                 final_video = self.job_dir / "final_video.mp4"
                 shutil.copy2(dubbed_video, final_video)

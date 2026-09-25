@@ -4,7 +4,6 @@ import uuid
 import json
 import asyncio
 import threading
-import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -19,12 +18,7 @@ from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available, get_encoder_hardware_desc
 from app.queue_manager import job_queue_manager, EDGE_MAX_CONCURRENT, VOXCPM_MAX_CONCURRENT
-from app.voice_clone_manager import (
-    create_job as create_voice_clone_job,
-    get_job as get_voice_clone_job,
-    list_jobs as list_voice_clone_jobs,
-    VOICE_CLONE_DIR,
-)
+from app.voice_clone_manager import create_job as create_voice_clone_job, get_job as get_voice_clone_job, list_jobs as list_voice_clone_jobs, VOICE_CLONE_DIR
 
 
 def _font_family_from_file(font_path: Path) -> str:
@@ -114,37 +108,34 @@ async def update_settings(payload: SettingsUpdateRequest):
 
 @app.get("/api/fonts")
 async def get_fonts():
-    """Returns custom uploaded fonts and system fonts with Myanmar Text prioritized."""
-    fonts_list = ["Noto Sans Myanmar", "Padauk"]
-
-    # 1. Custom uploaded fonts
+    """Return only the installed custom fonts in the requested stable order."""
+    files = []
     if CUSTOM_FONTS_DIR.exists():
-        for f in sorted(CUSTOM_FONTS_DIR.iterdir()):
-            if f.suffix.lower() in ('.ttf', '.otf'):
-                family = _font_family_from_file(f)
-                if family not in fonts_list:
-                    fonts_list.append(family)
+        files = [p for p in CUSTOM_FONTS_DIR.iterdir()
+                 if p.suffix.lower() in (".ttf", ".otf")]
+    priority = {"z10-cartoon.ttf": 0, "myanmarthuriya.ttf": 1}
+    files.sort(key=lambda p: (priority.get(p.name.casefold(), 2), p.name.casefold()))
+    fonts, font_files = [], {}
+    for path in files:
+        family = _font_family_from_file(path)
+        if family.casefold() in {name.casefold() for name in fonts}:
+            continue
+        fonts.append(family)
+        font_files[family] = f"/api/fonts/file/{path.name}"
+    return {"fonts": fonts, "font_files": font_files}
 
-    # 2. System fonts
-    preferred = [
-        "Noto Sans Myanmar", "Padauk", "Arial", "Segoe UI", "Tahoma", "Calibri",
-        "Verdana", "Impact", "Trebuchet MS", "Times New Roman",
-        "Georgia", "Consolas", "Comic Sans MS"
-    ]
-    try:
-        import matplotlib.font_manager as fm
-        installed = set(f.name for f in fm.fontManager.ttflist)
-        for p in preferred:
-            if p in installed and p not in fonts_list:
-                fonts_list.append(p)
-        others = sorted([f for f in installed if f not in set(fonts_list) and not f.startswith("@")])
-        fonts_list.extend(others[:35])
-    except Exception:
-        for p in preferred:
-            if p not in fonts_list:
-                fonts_list.append(p)
 
-    return {"fonts": fonts_list}
+@app.get("/api/fonts/file/{filename}")
+async def get_font_file(filename: str):
+    """Serve a selected custom font for the settings preview only."""
+    requested = Path(filename).name
+    if requested != filename or Path(filename).suffix.lower() not in (".ttf", ".otf"):
+        raise HTTPException(status_code=400, detail="Invalid font filename.")
+    font_path = CUSTOM_FONTS_DIR / requested
+    if not font_path.is_file():
+        raise HTTPException(status_code=404, detail="Font not found.")
+    media_type = "font/ttf" if font_path.suffix.lower() == ".ttf" else "font/otf"
+    return FileResponse(font_path, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.post("/api/fonts/upload")
@@ -301,8 +292,7 @@ async def create_voice_clone(
     if not script.strip():
         raise HTTPException(status_code=400, detail="ပြောစေချင်တဲ့စာသား ထည့်ပါ။")
     ext = Path(reference_audio.filename).suffix.lower()
-    allowed = (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".opus", ".aac", ".webm")
-    if ext not in allowed:
+    if ext not in (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".opus", ".aac", ".webm"):
         raise HTTPException(status_code=400, detail="Unsupported reference audio format.")
     reference_dir = VOICE_CLONE_DIR / "references"
     reference_dir.mkdir(parents=True, exist_ok=True)
@@ -313,9 +303,7 @@ async def create_voice_clone(
     if len(content) > 200 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Reference audio is too large (200 MB maximum).")
     reference_path.write_bytes(content)
-    job_id = create_voice_clone_job(
-        str(reference_path), Path(reference_audio.filename).name, reference_text, script
-    )
+    job_id = create_voice_clone_job(str(reference_path), Path(reference_audio.filename).name, reference_text, script)
     return {"job_id": job_id, "status": "queued"}
 
 
@@ -397,10 +385,8 @@ async def create_job(payload: JobCreateRequest):
         updates["font_size_px"] = payload.font_size_px
     if payload.font_color:
         updates["font_color"] = payload.font_color
-    if payload.output_resolution:
-        if payload.output_resolution.lower() not in ("1080p", "2k", "4k"):
-            raise HTTPException(status_code=400, detail="Output resolution must be 1080p, 2K, or 4K.")
-        updates["output_resolution"] = payload.output_resolution.lower()
+    if payload.output_resolution in ("1080p", "2k", "4k"):
+        updates["output_resolution"] = payload.output_resolution
     if updates:
         settings_manager.save(updates)
 
@@ -416,7 +402,7 @@ async def create_job(payload: JobCreateRequest):
         font_style=payload.font_style,
         subtitle_pos_x=payload.subtitle_pos_x,
         subtitle_pos_y=payload.subtitle_pos_y,
-        output_resolution=payload.output_resolution,
+        output_resolution=payload.output_resolution
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)
@@ -459,10 +445,8 @@ async def create_job_upload(
         updates["font_size_px"] = font_size_px
     if font_color:
         updates["font_color"] = font_color
-    if output_resolution:
-        if output_resolution.lower() not in ("1080p", "2k", "4k"):
-            raise HTTPException(status_code=400, detail="Output resolution must be 1080p, 2K, or 4K.")
-        updates["output_resolution"] = output_resolution.lower()
+    if output_resolution in ("1080p", "2k", "4k"):
+        updates["output_resolution"] = output_resolution
     if updates:
         settings_manager.save(updates)
 
@@ -490,7 +474,7 @@ async def create_job_upload(
         font_style=font_style,
         subtitle_pos_x=subtitle_pos_x,
         subtitle_pos_y=subtitle_pos_y,
-        output_resolution=output_resolution,
+        output_resolution=output_resolution
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)
@@ -585,38 +569,6 @@ async def get_job_file(job_id: str, filename: str):
         media_type = "text/plain; charset=utf-8"
 
     return FileResponse(file_path, media_type=media_type)
-
-
-@app.get("/api/jobs/{job_id}/download")
-def download_video_resolution(job_id: str, resolution: str = "1080p"):
-    """Create/cache the requested download size after the final video exists."""
-    if resolution.lower() not in ("1080p", "2k", "4k"):
-        raise HTTPException(status_code=400, detail="Resolution must be 1080p, 2K, or 4K.")
-    job_dir = (JOBS_DIR / job_id).resolve()
-    final_video = job_dir / "final_video.mp4"
-    if not job_dir.is_dir() or not final_video.exists():
-        raise HTTPException(status_code=404, detail="Final video is not ready.")
-
-    key = resolution.lower()
-    cached = job_dir / f"download_{key}.mp4"
-    if key == "4k":
-        return FileResponse(final_video, media_type="video/mp4", filename=f"recap_{job_id}_4k.mp4")
-    if not cached.exists() or cached.stat().st_mtime < final_video.stat().st_mtime:
-        long_edge = {"1080p": 1920, "2k": 2560}[key]
-        scale = (
-            f"scale=w='if(gte(iw,ih),{long_edge},-2)':"
-            f"h='if(gte(iw,ih),-2,{long_edge})':flags=lanczos"
-        )
-        result = subprocess.run(
-            ["ffmpeg", "-y", "-i", str(final_video), "-vf", scale,
-             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
-             "-movflags", "+faststart", str(cached)],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-        )
-        if result.returncode != 0 or not cached.exists():
-            raise HTTPException(status_code=500, detail=f"Resolution export failed: {result.stderr[-1200:]}")
-    return FileResponse(cached, media_type="video/mp4", filename=f"recap_{job_id}_{key}.mp4")
 
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"

@@ -2873,3 +2873,20 @@ body.voiceclone-page .bv-voice-clone-modal .bv-modal-close-btn { display:none !i
     max-height: calc(94vh - 235px);
   }
 }
+
+.bv-font-live-preview {
+  margin-top: 10px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.07);
+  color: var(--text-main);
+  font-size: 20px;
+  line-height: 1.65;
+  text-align: center;
+  overflow: hidden;
+}

@@ -131,7 +131,7 @@ class SubtitleBurner:
 
     def _resolve_font(self, requested: str) -> (str, Optional[Path]):
         """Return the exact ASS family and custom file selected by the user."""
-        requested = (requested or "Noto Sans Myanmar").strip()
+        requested = (requested or "Z10-Cartoon").strip()
         custom_path = Path(str(settings_manager.get("custom_font_path", "")))
         candidates = [custom_path] if custom_path.exists() else []
         if CUSTOM_FONTS_DIR.exists():
@@ -143,7 +143,7 @@ class SubtitleBurner:
                     or font_path.stem.casefold() == requested.casefold()):
                 return family, font_path
         if requested.casefold() in {"myanmar text", "myanmartext"}:
-            requested = "Noto Sans Myanmar"
+            requested = "Z10-Cartoon"
         return requested, None
 
     def _get_video_dimensions(self, video_path: Path) -> (int, int):
@@ -170,30 +170,33 @@ class SubtitleBurner:
         video_width: int,
         video_height: int,
         font_color: str = "#FFFFFF",
-        font_size_px: int = 36,
-        font_style: str = "Noto Sans Myanmar",
+        font_size_px: int = 70,
+        font_style: str = "Z10-Cartoon",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
-        auto_blur: bool = False
+        auto_blur: bool = False,
+        output_resolution: Optional[str] = None
     ) -> (Path, Path):
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         ass_path = output_dir / "subtitles.ass"
         srt_path = output_dir / "subtitles.srt"
 
-        # Calculate exact pixel coordinates from percentage drag
-        target_x = int(video_width * (pos_x_pct / 100.0))
-        target_y = int(video_height * (pos_y_pct / 100.0))
-
-        # Auto Blur follows the reference image: compact, readable text whose
-        # size does not become oversized on a tall 9:16 video.
-        if auto_blur:
-            # Readable on vertical videos: approximately 78px at 1320px width.
-            scaled_font_size = max(56, min(84, int(round(video_width / 17.0))))
-        else:
-            scale_factor = video_height / 1080.0 if video_height > 0 else 1.0
-            scaled_font_size = max(16, int(font_size_px * scale_factor))
+        resolution_sizes = {"1080p": 70, "2k": 94, "4k": 140}
+        preset = resolution_sizes.get(str(output_resolution or "").lower())
+        if preset is None:
+            longest_side = max(video_width, video_height)
+            preset = 70 if longest_side <= 1920 else 94 if longest_side <= 2560 else 140
+        scaled_font_size = preset
         outline_size = max(2, int(scaled_font_size * 0.12))
+
+        # ASS \pos() bypasses MarginL/MarginR, so clamp the requested center
+        # into a real safe area. The horizontal budget also matches the line
+        # splitter below, preventing a long subtitle from escaping the frame.
+        safe_margin_x = max(int(video_width * 0.10), scaled_font_size * 2)
+        safe_margin_y = max(int(video_height * 0.06), scaled_font_size + outline_size * 2)
+        target_x = max(safe_margin_x, min(video_width - safe_margin_x, int(video_width * (pos_x_pct / 100.0))))
+        target_y = max(safe_margin_y, min(video_height - safe_margin_y, int(video_height * (pos_y_pct / 100.0))))
 
         ass_color = hex_to_ass_color(font_color)
         safe_font, _ = self._resolve_font(font_style)
@@ -217,8 +220,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         srt_lines = []
 
         valid_segments = [s for s in segments if s.get("text", "").strip()]
-        if auto_blur:
-            valid_segments = split_sequential_subtitle_segments(valid_segments)
+        safe_width = max(1, video_width - (safe_margin_x * 2))
+        safe_chars = max(8, int(safe_width / max(1, scaled_font_size * 0.95)))
+        valid_segments = split_sequential_subtitle_segments(valid_segments, max_chars=safe_chars)
         for idx, seg in enumerate(valid_segments):
             start = float(seg.get("start", 0.0))
             end = float(seg.get("end", start + 1.0))
@@ -226,10 +230,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             ass_start = format_ass_timestamp(start)
             ass_end = format_ass_timestamp(end)
-            # Always render one subtitle line at a time; Auto Blur already
-            # splits long phrases sequentially, and normal mode follows the
-            # same no-stacking rule.
-            subtitle_text = text
+            subtitle_text = text.replace("\n", " ").strip()
             clean_text = subtitle_text.replace("\n", "\\N")
             
             # Use \\an5\\pos(X, Y) tag for exact drag positioning matching CSS translate(-50%, -50%)!
@@ -239,9 +240,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             srt_end = format_srt_timestamp(end)
             srt_lines.append(f"{idx + 1}\n{srt_start} --> {srt_end}\n{subtitle_text}\n\n")
 
-        # libass is more reliable across Kaggle FFmpeg builds when ASS is
-        # written with an explicit UTF-8 BOM, as in the known-good renderer.
-        with open(ass_path, "w", encoding="utf-8-sig") as f:
+        with open(ass_path, "w", encoding="utf-8") as f:
             f.writelines(ass_lines)
 
         with open(srt_path, "w", encoding="utf-8") as f:
@@ -255,12 +254,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         segments: List[Dict[str, Any]],
         output_path: Optional[Path] = None,
         font_color: str = "#FFFFFF",
-        font_size_px: int = 36,
-        font_style: str = "Noto Sans Myanmar",
+        font_size_px: int = 70,
+        font_style: str = "Z10-Cartoon",
         pos_x_pct: float = 50.0,
         pos_y_pct: float = 82.0,
         blur_band: Optional[Dict[str, float]] = None,
-        auto_blur: bool = False
+        auto_blur: bool = False,
+        output_resolution: Optional[str] = None
     ) -> Path:
         video_path = Path(video_path)
         if not video_path.exists():
@@ -285,7 +285,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             font_style=font_style,
             pos_x_pct=pos_x_pct,
             pos_y_pct=pos_y_pct,
-            auto_blur=auto_blur
+            auto_blur=auto_blur,
+            output_resolution=output_resolution
         )
 
         encoder_name = get_active_encoder_name()
@@ -293,6 +294,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         if self.progress_callback:
             self.progress_callback(f"စာတန်းထိုးနေပါတယ်... (FFmpeg {encoder_name} rendering)", 50.0)
+
+        sub_rel = ass_path.name
 
         # Resolve the selected font explicitly; this avoids missing-font fallback on Kaggle.
         fonts_dir_arg = ""
@@ -316,11 +319,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             clean_fonts_dir = str(CUSTOM_FONTS_DIR).replace('\\', '/').replace(':', '\\:')
             fonts_dir_arg = f":fontsdir='{clean_fonts_dir}'"
 
-        # Use an absolute ASS path and the ASS filter. Relative paths and the
-        # generic subtitles filter can resolve a stale/wrong file in queued
-        # Kaggle jobs; the reference renderer uses this exact approach.
-        ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-        sub_filter = f"ass='{ass_filter_path}'{fonts_dir_arg}"
+        sub_filter = f"subtitles='{sub_rel}'{fonts_dir_arg}"
         if blur_band:
             blur_top = max(0, min(height - 1, int(height * float(blur_band["top_percent"]) / 100.0)))
             blur_bottom = max(blur_top + 1, min(height, int(height * float(blur_band["bottom_percent"]) / 100.0)))

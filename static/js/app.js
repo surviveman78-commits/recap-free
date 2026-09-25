@@ -15,7 +15,9 @@ const BURMESE_STAGES = [
 let appSettings = {};
 let voiceCatalog = { languages: [], voices_by_language: {} };
 let systemFonts = [];
+let fontFiles = {};
 let targetLanguages = [];
+const RESOLUTION_FONT_SIZES = { "1080p": 70, "2k": 94, "4k": 140 };
 let currentEventSource = null;
 let currentInputMode = "link";
 
@@ -100,6 +102,7 @@ const autoBlurStatus = document.getElementById("autoBlurStatus");
 const dragCanvasContainer = document.getElementById("dragCanvasContainer");
 const draggableSubtitle = document.getElementById("draggableSubtitle");
 const previewSubText = document.getElementById("previewSubText");
+const fontLivePreview = document.getElementById("fontLivePreview");
 const posXLabel = document.getElementById("posXLabel");
 const posYLabel = document.getElementById("posYLabel");
 const resetPosBtn = document.getElementById("resetPosBtn");
@@ -240,7 +243,8 @@ async function autoSaveSubtitleSettings() {
         font_style: fontStyleSelect.value,
         font_size_px: parseInt(fontSizeRange.value, 10),
         font_color: fontColorPicker.value,
-        auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked)
+        auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
+        output_resolution: outputResolution ? outputResolution.value : "1080p"
       })
     });
   } catch (e) {
@@ -276,14 +280,19 @@ resetPosBtn.addEventListener("click", () => {
 // Font & Color Live Preview
 // ──────────────────────────────────────────────
 function updateSubtitleVisualPreview() {
-  const font = fontStyleSelect.value || "Myanmar Text";
+  const font = fontStyleSelect.value || "Z10-Cartoon";
   const color = fontColorPicker.value || "#FFFFFF";
-  const sizePx = fontSizeRange.value || 36;
+  const sizePx = fontSizeRange.value || RESOLUTION_FONT_SIZES[outputResolution?.value] || 70;
   fontSizeDisplay.innerText = `${sizePx}px`;
   previewSubText.style.fontFamily = `"${font}", sans-serif`;
   previewSubText.style.color = color;
   const previewScaleSize = Math.max(12, Math.min(22, Math.round(sizePx * 0.45)));
   previewSubText.style.fontSize = `${previewScaleSize}px`;
+  if (fontLivePreview) {
+    fontLivePreview.style.fontFamily = `"${font}", sans-serif`;
+    fontLivePreview.style.color = color;
+    fontLivePreview.textContent = `ဒါက ${font} နဲ့ မြန်မာစာ preview ပါ`;
+  }
 }
 
 fontStyleSelect.addEventListener("change", () => { updateSubtitleVisualPreview(); autoSaveSubtitleSettings(); });
@@ -307,13 +316,32 @@ async function loadFonts() {
     if (!res.ok) return;
     const data = await res.json();
     systemFonts = data.fonts || [];
+    fontFiles = data.font_files || {};
     fontStyleSelect.innerHTML = "";
-    systemFonts.forEach(font => fontStyleSelect.appendChild(new Option(font, font)));
-    const currentFont = appSettings.font_style || "Myanmar Text";
+    systemFonts.forEach(font => {
+      fontStyleSelect.appendChild(new Option(font, font));
+      const url = fontFiles[font];
+      if (url) {
+        const face = new FontFace(font, `url(${url})`);
+        face.load().then(loaded => document.fonts.add(loaded)).catch(err => console.warn("Font preview load failed", font, err));
+      }
+    });
+    const currentFont = appSettings.font_style || "Z10-Cartoon";
     if (systemFonts.includes(currentFont)) fontStyleSelect.value = currentFont;
     updateSubtitleVisualPreview();
   } catch (err) { console.error("Error loading fonts:", err); }
 }
+
+function applyResolutionFontPreset() {
+  const size = RESOLUTION_FONT_SIZES[outputResolution?.value] || 70;
+  if (fontSizeRange) fontSizeRange.value = size;
+  updateSubtitleVisualPreview();
+}
+
+if (outputResolution) outputResolution.addEventListener("change", () => {
+  applyResolutionFontPreset();
+  autoSaveSubtitleSettings();
+});
 
 uploadCustomFontBtn.addEventListener("click", () => customFontFileInput.click());
 customFontFileInput.addEventListener("change", async () => {
@@ -415,6 +443,7 @@ async function loadSettings() {
     if (appSettings.font_color) { fontColorPicker.value = appSettings.font_color; fontColorHex.innerText = appSettings.font_color; }
     if (appSettings.font_size_px) { fontSizeRange.value = appSettings.font_size_px; fontSizeDisplay.innerText = `${appSettings.font_size_px}px`; }
     if (appSettings.font_style && fontStyleSelect.querySelector(`option[value="${appSettings.font_style}"]`)) fontStyleSelect.value = appSettings.font_style;
+    applyResolutionFontPreset();
     if (autoBlurSubtitlesToggle) {
       autoBlurSubtitlesToggle.checked = Boolean(appSettings.auto_blur_subtitles);
       applyAutoBlurUi(autoBlurSubtitlesToggle.checked);
