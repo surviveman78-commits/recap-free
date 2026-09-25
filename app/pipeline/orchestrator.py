@@ -15,6 +15,7 @@ from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.audio_mixer import AudioMixer
 from app.pipeline.subtitle_burner import SubtitleBurner
 from app.pipeline.gemini_blur_detector import GeminiSubtitleBandDetector, padded_band
+from app.pipeline.burmese_text import normalize_burmese_digits
 
 # Exact Burmese stage labels
 STAGES = [
@@ -176,6 +177,25 @@ class PipelineOrchestrator:
                     mode=gemini_mode,
                     target_language=target_language
                 )
+            if str(target_language or "").lower().startswith("my"):
+                # Burmese TTS voices should receive Myanmar numerals. ASCII
+                # digits in translated text are otherwise pronounced in an
+                # English-style way by Edge TTS and VoxCPM.
+                for segment in gemini_res.get("segments", []):
+                    segment["text"] = normalize_burmese_digits(segment.get("text", ""))
+                gemini_res["full_text"] = normalize_burmese_digits(gemini_res.get("full_text", ""))
+                processed_txt = self.job_dir / "processed_transcript.txt"
+                if processed_txt.exists():
+                    processed_txt.write_text(gemini_res["full_text"].strip() + "\n", encoding="utf-8")
+                processed_json = self.job_dir / "processed_transcript.json"
+                if processed_json.exists():
+                    try:
+                        metadata = json.loads(processed_json.read_text(encoding="utf-8"))
+                        metadata["full_text"] = gemini_res["full_text"]
+                        metadata["segments"] = gemini_res["segments"]
+                        processed_json.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+                    except (OSError, ValueError, TypeError):
+                        pass
             self.artifacts["processed_transcript_txt"] = "processed_transcript.txt"
             self.artifacts["processed_transcript_json"] = "processed_transcript.json"
 

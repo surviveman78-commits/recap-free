@@ -6,6 +6,8 @@ import unicodedata
 import os
 from typing import List
 
+_BURMESE_DIGITS = str.maketrans("0123456789", "၀၁၂၃၄၅၆၇၈၉")
+
 try:
     from burmese_tools import tools as _burmese_tools
 except Exception:  # Optional during lightweight local development.
@@ -37,6 +39,11 @@ def normalize_myanmar_text(text: str) -> str:
     return value
 
 
+def normalize_burmese_digits(text: str) -> str:
+    """Use Myanmar digits in Burmese narration/subtitles instead of English digits."""
+    return str(text or "").translate(_BURMESE_DIGITS)
+
+
 def grapheme_clusters(text: str) -> List[str]:
     """Split text without separating Myanmar combining marks from their base."""
     clusters: List[str] = []
@@ -48,4 +55,4 @@ def grapheme_clusters(text: str) -> List[str]:
     return clusters
 
 
-__all__ = ["normalize_myanmar_text", "grapheme_clusters"]
+__all__ = ["normalize_myanmar_text", "normalize_burmese_digits", "grapheme_clusters"]
