@@ -82,12 +82,24 @@ def split_sequential_subtitle_segments(
         parts: List[str] = []
         remaining = clusters[:]
         while len(remaining) > max_chars:
-            cut = max_chars
-            # Prefer a phrase boundary or word space near the visual limit.
-            for index in range(max_chars, max(3, int(max_chars * 0.60)), -1):
-                if remaining[index - 1].isspace() or remaining[index - 1] in "၊။!?…,:;—-":
-                    cut = index
-                    break
+            # Prefer the last phrase/sentence boundary before the visual
+            # limit. Never split a Burmese word merely because the line is
+            # close to max_chars; doing so creates broken phrases such as
+            # "အင်ဂျင်နီ" / "ယာတွေက...".
+            boundary_chars = "၊။!?…,:;—-"
+            before_limit = [
+                index for index in range(1, min(max_chars, len(remaining) - 1) + 1)
+                if remaining[index - 1].isspace() or remaining[index - 1] in boundary_chars
+            ]
+            cut = max(before_limit) if before_limit else max_chars
+            if not before_limit:
+                # If the next boundary is close enough, extend to it rather
+                # than cutting a word. A truly unbroken token falls back to
+                # a grapheme-safe hard cut as the only safe option.
+                for index in range(max_chars + 1, min(len(remaining) - 1, max_chars + 16) + 1):
+                    if remaining[index - 1].isspace() or remaining[index - 1] in boundary_chars:
+                        cut = index
+                        break
             parts.append("".join(remaining[:cut]).strip())
             remaining = remaining[cut:]
         tail = "".join(remaining).strip()
@@ -192,9 +204,9 @@ class SubtitleBurner:
         outline_size = max(2, int(scaled_font_size * 0.12))
 
         # ASS \pos() bypasses MarginL/MarginR, so clamp the requested center
-        # into a real safe area. The horizontal budget also matches the line
-        # splitter below, preventing a long subtitle from escaping the frame.
-        safe_margin_x = max(int(video_width * 0.10), scaled_font_size * 2)
+        # into a real safe area. Keep 5% on each horizontal side while also
+        # reserving enough room for the font outline at small resolutions.
+        safe_margin_x = max(int(video_width * 0.05), scaled_font_size + outline_size)
         safe_margin_y = max(int(video_height * 0.06), scaled_font_size + outline_size * 2)
         target_x = max(safe_margin_x, min(video_width - safe_margin_x, int(video_width * (pos_x_pct / 100.0))))
         target_y = max(safe_margin_y, min(video_height - safe_margin_y, int(video_height * (pos_y_pct / 100.0))))
