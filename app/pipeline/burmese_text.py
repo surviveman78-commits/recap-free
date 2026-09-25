@@ -42,8 +42,37 @@ def normalize_myanmar_text(text: str) -> str:
 
 
 def normalize_burmese_digits(text: str) -> str:
-    """Use Myanmar digits in Burmese narration/subtitles instead of English digits."""
-    return str(text or "").translate(_BURMESE_DIGITS)
+    """Use Myanmar digits for standalone numbers, preserving English phrases."""
+    value = str(text or "")
+
+    # Keep identifiers and English phrases such as COVID-19, H1N1, MP4 and
+    # 5G intact. Only standalone numeric tokens are converted to Myanmar
+    # digits; the TTS layer must not spell them out as Burmese number words.
+    protected_pattern = re.compile(
+        r"[A-Za-z][A-Za-z0-9._/-]*\d[A-Za-z0-9._/-]*"
+        r"|\d+[A-Za-z][A-Za-z0-9._/-]*"
+    )
+    protected = []
+
+    def hold(match: re.Match[str]) -> str:
+        protected.append(match.group(0))
+        # Encode the index as a private-use character so digit normalization
+        # cannot alter the marker itself.
+        return f"\uE000{chr(0xE100 + len(protected) - 1)}\uE001"
+
+    value = protected_pattern.sub(hold, value)
+    # Remove thousands separators from numeric tokens so 1,000 becomes
+    # ၁၀၀၀ rather than ၁,၀၀၀. Commas used as normal sentence punctuation
+    # remain untouched.
+    value = re.sub(
+        r"(?<![A-Za-z0-9])\d[\d,]*(?:\.\d+)?(?![A-Za-z0-9])",
+        lambda match: match.group(0).replace(",", ""),
+        value,
+    )
+    value = value.translate(_BURMESE_DIGITS)
+    for index, original in enumerate(protected):
+        value = value.replace(f"\uE000{chr(0xE100 + index)}\uE001", original)
+    return value
 
 
 def _under_thousand_to_burmese(number: int) -> str:

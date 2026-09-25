@@ -73,6 +73,26 @@ class PipelineOrchestrator:
         except Exception:
             return 0.0
 
+    @staticmethod
+    def _get_transcript_duration(transcription: Dict[str, Any], fallback: float = 0.0) -> float:
+        """Use the end of the last spoken segment, not silent video tail, for expansion."""
+        segments = transcription.get("segments") or []
+        ends = []
+        for segment in segments:
+            try:
+                end = float(segment.get("end", 0.0))
+            except (TypeError, ValueError):
+                continue
+            if end > 0:
+                ends.append(end)
+        if ends:
+            return max(ends)
+        try:
+            reported = float(transcription.get("duration", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            reported = 0.0
+        return reported if reported > 0 else float(fallback or 0.0)
+
     def run(
         self,
         video_url: Optional[str],
@@ -142,6 +162,7 @@ class PipelineOrchestrator:
                 progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct)
             )
             groq_res = transcriber.transcribe(original_audio, self.job_dir)
+            transcript_duration = self._get_transcript_duration(groq_res, source_duration)
             self.artifacts["transcript_json"] = "transcript.json"
             self.artifacts["transcript_txt"] = "transcript.txt"
 
@@ -177,7 +198,7 @@ class PipelineOrchestrator:
                     output_dir=self.job_dir,
                     mode=gemini_mode,
                     target_language=target_language,
-                    source_duration=source_duration
+                    source_duration=transcript_duration
                 )
             if str(target_language or "").lower().startswith("my"):
                 # Burmese TTS voices should receive Myanmar numerals. ASCII

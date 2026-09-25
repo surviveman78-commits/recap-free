@@ -10,7 +10,6 @@ import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable, Tuple
 import edge_tts
-from app.pipeline.burmese_text import prepare_burmese_tts_text
 
 # Dynamic candidate directories for VoxCPM repo (Windows local, Kaggle, Linux, Colab)
 CANDIDATE_VOXCPM_DIRS = [
@@ -338,11 +337,6 @@ class TTSEngine:
         raw_snippets = []
         for idx, seg in enumerate(valid_segments):
             text = seg.get("text", "").strip()
-            # Burmese digit glyphs alone are not sufficient: some TTS voices
-            # still read them with English-style digit pronunciation. Convert
-            # numeric tokens to spoken Burmese words for both engines.
-            if voice.startswith("my-") or engine == "voxcpm2":
-                text = prepare_burmese_tts_text(text)
             seg_file = snippets_dir / f"seg_{idx:04d}.wav"
 
             pct = 10.0 + (idx / total_segments) * 75.0
