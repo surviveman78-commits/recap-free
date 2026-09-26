@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 from app.config import DATA_DIR
 from app.pipeline.tts_engine import TTSEngine
+from app.pipeline.burmese_text import prepare_burmese_tts_text
 
 VOICE_CLONE_DIR = DATA_DIR / "voice_clone_jobs"
 VOICE_CLONE_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,7 +44,7 @@ def _split_script(text: str, max_chars: int = 220) -> List[Dict[str, Any]]:
     cleaned = re.sub(r"\s+", " ", text.strip())
     if not cleaned:
         return []
-    sentences = [part.strip() for part in re.split(r"(?<=[။.!?])\s*", cleaned) if part.strip()]
+    sentences = [part.strip() for part in re.split(r"(?<=[။!?])\s*|(?<=[.!?])(?=\s|$)", cleaned) if part.strip()]
     chunks: List[str] = []
     current = ""
     for sentence in sentences or [cleaned]:
@@ -112,6 +113,9 @@ def _run_job(job_id: str, reference_path: str, reference_text: str, script: str)
             segments = _split_script(script)
             if not segments:
                 raise ValueError("ပြောစေချင်တဲ့စာသား မရှိပါ။")
+            for segment in segments:
+                segment["display_text"] = segment["text"]
+                segment["tts_text"] = prepare_burmese_tts_text(segment["text"])
             output_dir = VOICE_CLONE_DIR / job_id
             with _lock:
                 reference_text = reference_text.strip()

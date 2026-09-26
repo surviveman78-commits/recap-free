@@ -336,7 +336,8 @@ class TTSEngine:
         # Step 1: Synthesize each sentence snippet
         raw_snippets = []
         for idx, seg in enumerate(valid_segments):
-            text = seg.get("text", "").strip()
+            text = seg.get("tts_text", seg.get("text", "")).strip()
+            display_text = seg.get("display_text", seg.get("text", text)).strip()
             seg_file = snippets_dir / f"seg_{idx:04d}.wav"
 
             pct = 10.0 + (idx / total_segments) * 75.0
@@ -352,6 +353,7 @@ class TTSEngine:
             raw_snippets.append({
                 "path": seg_file,
                 "text": text,
+                "display_text": display_text,
                 "duration": dur,
                 "original_id": seg.get("id", idx)
             })
@@ -398,7 +400,7 @@ class TTSEngine:
                 "id": item["original_id"],
                 "start": round(start_t, 3),
                 "end": round(end_t, 3),
-                "text": item["text"]
+                "text": item["display_text"]
             })
 
             audio_parts.append(data)

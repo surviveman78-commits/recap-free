@@ -114,18 +114,92 @@ def burmese_number_to_words(number: int) -> str:
 
 
 def prepare_burmese_tts_text(text: str) -> str:
-    """Replace numeric tokens with Burmese words before Edge TTS/VoxCPM input."""
+    """Convert standalone numeric tokens to natural Burmese speech text.
+
+    This is intentionally a speech-only transform. Display/subtitle text keeps
+    the original digits. English identifiers such as COVID-19 and MP4 are
+    protected and are never converted.
+    """
     value = normalize_myanmar_text(text)
-    value = value.translate(_DIGIT_VALUES)
+    protected = []
 
-    def replace(match):
-        token = match.group(0).replace(",", "")
-        if "." in token:
-            whole, fraction = token.split(".", 1)
-            return burmese_number_to_words(int(whole or 0)) + " ဒသမ " + " ".join(_NUMBER_WORDS[int(d)] for d in fraction)
-        return burmese_number_to_words(int(token))
+    def hold(match: re.Match[str]) -> str:
+        protected.append(match.group(0))
+        return f"\uE000{chr(0xE100 + len(protected) - 1)}\uE001"
 
-    return re.sub(r"(?<![A-Za-z])\d+(?:\.\d+)?", replace, value)
+    value = re.sub(r"[A-Za-z][A-Za-z0-9._/-]*\d[A-Za-z0-9._/-]*|\d+[A-Za-z][A-Za-z0-9._/-]*", hold, value)
+    token_pattern = re.compile(r"(?<![A-Za-z0-9])([0-9၀-၉][0-9၀-၉,]*(?:\.[0-9၀-၉]+)?)(?![A-Za-z0-9])")
+
+    def convert(match: re.Match[str]) -> str:
+        token = match.group(1).replace(",", "")
+        is_myanmar = any("၀" <= char <= "၉" for char in token)
+        ascii_token = token.translate(_DIGIT_VALUES)
+        if "." in ascii_token:
+            whole, fraction = ascii_token.split(".", 1)
+            if is_myanmar:
+                return f"{_integer_to_burmese_words(int(whole or 0))}ဒသမ{''.join(_NUMBER_WORDS[int(d)] for d in fraction)}"
+            return f"{_ascii_integer_speech(int(whole or 0))}ပွိုင့်{''.join(_ascii_digit_speech(int(d)) for d in fraction)}"
+        return _integer_to_burmese_words(int(ascii_token or 0))
+
+    value = token_pattern.sub(convert, value)
+    for index, original in enumerate(protected):
+        value = value.replace(f"\uE000{chr(0xE100 + index)}\uE001", original)
+    return value
+
+
+def _ascii_digit_speech(digit: int) -> str:
+    return ("ဇီးရိုး", "ဝမ်း", "တူး", "သရီး", "ဖိုး", "ဖိုင်", "စစ်", "ဆဲဗင်း", "အိတ်", "နိုင်")[digit]
+
+
+def _ascii_integer_speech(number: int) -> str:
+    if number == 0:
+        return "ဇီးရိုး"
+    if 0 < number < 10:
+        return _ascii_digit_speech(number)
+    return _integer_to_burmese_words(number)
+
+
+def _under_thousand_speech(number: int) -> str:
+    hundreds, remainder = divmod(number, 100)
+    parts = []
+    if hundreds:
+        parts.append(("ရာ" if hundreds == 1 else _NUMBER_WORDS[hundreds] + "ရာ"))
+        if remainder:
+            parts[-1] += "့"
+    if remainder:
+        tens, ones = divmod(remainder, 10)
+        if tens:
+            parts.append("ဆယ်" if tens == 1 else _NUMBER_WORDS[tens] + "ဆယ်")
+            if ones:
+                parts[-1] += "့"
+        if ones:
+            parts.append(_NUMBER_WORDS[ones])
+    return "".join(parts) or "သုည"
+
+
+def _integer_to_burmese_words(number: int) -> str:
+    """Natural spoken form used only for TTS, including the requested forms."""
+    number = int(number)
+    if number == 0:
+        return "သုည"
+    if number < 0:
+        return "အနုတ်" + _integer_to_burmese_words(-number)
+    parts = []
+    for divisor, label in ((1_000_000_000, "ဘီလီယံ"), (1_000_000, "သန်း"), (10_000, "သောင်း"), (1_000, "ထောင်")):
+        amount, number = divmod(number, divisor)
+        if amount:
+            if divisor == 1_000:
+                if amount == 1:
+                    parts.append("တထောင်" if number == 0 else "ထောင့်")
+                else:
+                    parts.append(_under_thousand_speech(amount) + ("ထောင်" if number == 0 else "ထောင့်"))
+            else:
+                parts.append(_under_thousand_speech(amount) + label)
+            if number and divisor != 1_000:
+                parts[-1] += "့"
+    if number:
+        parts.append(_under_thousand_speech(number))
+    return "".join(parts)
 
 
 def grapheme_clusters(text: str) -> List[str]:

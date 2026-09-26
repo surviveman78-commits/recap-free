@@ -15,7 +15,7 @@ from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.audio_mixer import AudioMixer
 from app.pipeline.subtitle_burner import SubtitleBurner
 from app.pipeline.gemini_blur_detector import GeminiSubtitleBandDetector, padded_band
-from app.pipeline.burmese_text import normalize_burmese_digits
+from app.pipeline.burmese_text import normalize_burmese_digits, prepare_burmese_tts_text
 
 # Exact Burmese stage labels
 STAGES = [
@@ -200,13 +200,18 @@ class PipelineOrchestrator:
                     target_language=target_language,
                     source_duration=transcript_duration
                 )
+            tts_segments = []
             if str(target_language or "").lower().startswith("my"):
                 # Burmese TTS voices should receive Myanmar numerals. ASCII
                 # digits in translated text are otherwise pronounced in an
                 # English-style way by Edge TTS and VoxCPM.
+                display_segments = []
                 for segment in gemini_res.get("segments", []):
-                    segment["text"] = normalize_burmese_digits(segment.get("text", ""))
+                    display_text = normalize_burmese_digits(segment.get("text", ""))
+                    display_segments.append({**segment, "text": display_text, "display_text": display_text, "tts_text": prepare_burmese_tts_text(display_text)})
+                gemini_res["segments"] = display_segments
                 gemini_res["full_text"] = normalize_burmese_digits(gemini_res.get("full_text", ""))
+                tts_segments = display_segments
                 processed_txt = self.job_dir / "processed_transcript.txt"
                 if processed_txt.exists():
                     processed_txt.write_text(gemini_res["full_text"].strip() + "\n", encoding="utf-8")
@@ -240,8 +245,10 @@ class PipelineOrchestrator:
             tts_engine = TTSEngine(
                 progress_callback=lambda msg, pct: self._notify(stage_5, 5, msg, pct)
             )
+            if not tts_segments:
+                tts_segments = [{**segment, "display_text": segment.get("text", ""), "tts_text": segment.get("text", "")} for segment in gemini_res["segments"]]
             tts_audio, synced_segments = tts_engine.generate(
-                segments=gemini_res["segments"],
+                segments=tts_segments,
                 output_dir=self.job_dir,
                 engine=voice_engine,
                 voice=edge_tts_voice,

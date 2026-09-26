@@ -373,13 +373,6 @@ async def create_job(payload: JobCreateRequest):
 
     if not payload.video_url:
         raise HTTPException(status_code=400, detail="Video Link ထည့်သွင်းပေးပါ။")
-    lowered_url = payload.video_url.lower()
-    if "youtube.com" in lowered_url or "youtu.be" in lowered_url:
-        raise HTTPException(
-            status_code=400,
-            detail="YouTube video များကို Link ဖြင့်မဒေါင်းတော့ပါ။ Video ကို file အဖြစ် download လုပ်ပြီး Local Video File မှတင်ပါ။",
-        )
-
     updates = {}
     if payload.target_language:
         updates["target_language"] = payload.target_language
