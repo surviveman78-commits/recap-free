@@ -44,6 +44,9 @@ class VideoDownloader:
             self.output_dir.parent.parent / "youtube_cookies.txt",
             Path("/kaggle/working/youtube_cookies.txt"),
         ]
+        kaggle_input = Path("/kaggle/input")
+        if kaggle_input.exists():
+            cookie_candidates.extend(sorted(kaggle_input.rglob("youtube_cookies.txt")))
         cookie_file = next((p for p in cookie_candidates if p and p.exists()), None)
         ydl_opts = {
             'format': 'bv*+ba/b',
