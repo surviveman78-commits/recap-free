@@ -309,10 +309,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         width, height = self._get_video_dimensions(video_path)
         output_profile = str(output_resolution or "").lower()
         is_tiktok = output_profile in {"tiktok1080", "tiktok2k"}
-        render_width, render_height = {
-            "tiktok1080": (1080, 1920),
-            "tiktok2k": (1440, 2560),
-        }.get(output_profile, (width, height))
+        # The mixer has already applied the selected output resolution. Keep
+        # the resulting video's exact dimensions here so TikTok profiles do
+        # not force a 9:16 crop onto landscape or other source ratios.
+        render_width, render_height = width, height
         ass_path, srt_path = self.generate_subtitles(
             segments=segments,
             output_dir=video_path.parent,
@@ -379,20 +379,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             blur_top = max(0, min(render_height - 1, int(render_height * float(blur_band["top_percent"]) / 100.0)))
             blur_bottom = max(blur_top + 1, min(render_height, int(render_height * float(blur_band["bottom_percent"]) / 100.0)))
             blur_height = blur_bottom - blur_top
-            source_filter = f"scale={render_width}:{render_height}:force_original_aspect_ratio=increase,crop={render_width}:{render_height}"
             filter_graph = (
-                f"[0:v]{source_filter}[scaled];"
-                f"[scaled]split=2[base][blur_src];"
+                f"[0:v]split=2[base][blur_src];"
                 f"[blur_src]crop=iw:{blur_height}:0:{blur_top},boxblur=12:2[blurred];"
                 f"[base][blurred]overlay=0:{blur_top}:shortest=1[covered];"
                 f"[covered]{sub_filter}[vout]"
             )
             filter_args = ["-filter_complex", filter_graph, "-map", "[vout]", "-map", "0:a?", "-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
         else:
-            if is_tiktok:
-                video_filter = f"scale={render_width}:{render_height}:force_original_aspect_ratio=increase,crop={render_width}:{render_height},{sub_filter}"
-            else:
-                video_filter = sub_filter
+            video_filter = sub_filter
             filter_args = ["-vf", video_filter, "-c:a", "aac" if is_tiktok else "copy"]
             if is_tiktok:
                 filter_args.extend(["-b:a", "192k", "-ar", "48000"])

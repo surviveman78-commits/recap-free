@@ -137,7 +137,7 @@ class AudioMixer:
             background_atempo = self._atempo_chain(background_speed)
             filter_complex += (
                 f";[2:a]atrim=duration={background_dur:.3f},asetpts=N/SR/TB,"
-                f"{background_atempo},apad=whole_dur={tts_dur:.3f},"
+                f"{background_atempo},volume=0.7,apad=whole_dur={tts_dur:.3f},"
                 f"atrim=duration={tts_dur:.3f}[bg]"
                 f";[1:a]atrim=duration={tts_dur:.3f},asetpts=N/SR/TB[tts]"
                 ";[bg][tts]amix=inputs=2:duration=longest:dropout_transition=0.2:normalize=0[a]"
