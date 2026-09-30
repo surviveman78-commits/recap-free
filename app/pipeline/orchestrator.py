@@ -102,7 +102,7 @@ class PipelineOrchestrator:
         gemini_api_key: str,
         ai_mode: str = "cloud",
         voice_engine: str = "edge_tts",
-        edge_tts_voice: str = "my-MM-NilarNeural",
+        edge_tts_voice: str = "my-MM-ThihaNeural",
         voxcpm_voice_path: Optional[str] = None,
         voxcpm_ref_text: Optional[str] = None,
         voxcpm_device: Optional[str] = None,

@@ -265,7 +265,7 @@ class TTSEngine:
         segments: List[Dict[str, Any]],
         output_dir: Path,
         engine: str = "edge_tts",
-        voice: str = "my-MM-NilarNeural",
+        voice: str = "my-MM-ThihaNeural",
         voxcpm_ref_path: Optional[str] = None,
         voxcpm_ref_text: Optional[str] = None,
         voxcpm_device: Optional[str] = None
@@ -296,7 +296,7 @@ class TTSEngine:
         segments: List[Dict[str, Any]],
         output_dir: Path,
         engine: str = "edge_tts",
-        voice: str = "my-MM-NilarNeural",
+        voice: str = "my-MM-ThihaNeural",
         voxcpm_ref_path: Optional[str] = None,
         voxcpm_ref_text: Optional[str] = None,
         voxcpm_device: Optional[str] = None

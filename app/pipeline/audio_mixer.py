@@ -97,8 +97,11 @@ class AudioMixer:
 
         resolution_sizes = {
             "1080p": 1920,
+            "tiktok1080": 1920,
             "2k": 2560,
+            "tiktok2k": 2560,
             "4k": 3840,
+            "tiktok4k": 3840,
         }
         resolution_key = str(resolution or "1080p").strip().lower()
         target_short_edge = resolution_sizes.get(resolution_key, 1080)
@@ -156,6 +159,12 @@ class AudioMixer:
             "-movflags", "+faststart",
             str(output_path)
         ]
+        if resolution_key in {"tiktok1080", "tiktok2k"}:
+            # Use TikTok-compatible H.264 profiles while keeping the source
+            # aspect ratio. The final subtitle stage applies its bitrate cap
+            # when subtitles are enabled; this also covers subtitle-off jobs.
+            tiktok_level = "5.2" if resolution_key == "tiktok4k" else "5.0" if resolution_key == "tiktok2k" else "4.2"
+            cmd[-1:-1] = ["-profile:v", "high", "-level", tiktok_level, "-tag:v", "avc1"]
 
         if self.progress_callback:
             self.progress_callback(f"{resolution_key} ဗီဒီယိုနှင့် အသံဖိုင် ပေါင်းစပ် rendering ပြုလုပ်နေပါသည် ({encoder_name})...", 65.0)

@@ -53,7 +53,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "ai_mode": "local",
     "voice_engine": "edge_tts",
     "edge_tts_language": "my-MM",
-    "edge_tts_voice": "my-MM-NilarNeural",
+    "edge_tts_voice": "my-MM-ThihaNeural",
     "voxcpm_voice_name": "reference_speaker.wav",
     "voxcpm_voice_path": "",
     "voxcpm_reference_text": "",
@@ -65,7 +65,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "custom_font_path": "",
     "subtitle_pos_x": 50,
     "subtitle_pos_y": 82,
-    "output_resolution": "1080p",
+    "output_resolution": "tiktok1080",
     "enable_subtitles": True,
     "auto_blur_subtitles": False,
     "auto_blur_padding_pct": 1.5,
@@ -103,6 +103,9 @@ class SettingsManager:
             settings["font_size_px"] = DEFAULT_SETTINGS["font_size_px"]
         if settings.get("subtitle_animation") not in {"none", "fade", "slide", "pop"}:
             settings["subtitle_animation"] = DEFAULT_SETTINGS["subtitle_animation"]
+        legacy_resolution_map = {"1080p": "tiktok1080", "2k": "tiktok2k", "4k": "tiktok4k"}
+        if settings.get("output_resolution") in legacy_resolution_map:
+            settings["output_resolution"] = legacy_resolution_map[settings["output_resolution"]]
         return settings
 
     def get_all(self, mask: bool = True) -> Dict[str, Any]:

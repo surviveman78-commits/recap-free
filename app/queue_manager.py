@@ -211,7 +211,7 @@ class JobQueueManager:
             groq_api_key=settings_manager.get_groq_key(), gemini_api_key=settings_manager.get_gemini_key(),
             ai_mode=job_data.get("ai_mode", "local"),
             voice_engine=job_data["voice_engine"],
-            edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
+            edge_tts_voice=settings_manager.get("edge_tts_voice", "my-MM-ThihaNeural"),
             voxcpm_voice_path=settings_manager.get("voxcpm_voice_path", ""),
             voxcpm_ref_text=settings_manager.get("voxcpm_reference_text", ""),
             voxcpm_device=job_data.get("voxcpm_device"),

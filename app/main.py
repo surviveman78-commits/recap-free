@@ -218,7 +218,7 @@ async def list_voices():
         "voxcpm_voices": voxcpm_voices,
         "current_engine": settings_manager.get("voice_engine", "edge_tts"),
         "current_edge_language": settings_manager.get("edge_tts_language", "my-MM"),
-        "current_edge_voice": settings_manager.get("edge_tts_voice", "my-MM-NilarNeural"),
+        "current_edge_voice": settings_manager.get("edge_tts_voice", "my-MM-ThihaNeural"),
         "current_voxcpm_voice_name": settings_manager.get("voxcpm_voice_name", "reference_speaker.wav"),
         "current_voxcpm_voice_path": settings_manager.get("voxcpm_voice_path", ""),
         "current_voxcpm_ref_text": settings_manager.get("voxcpm_reference_text", "")
@@ -395,7 +395,7 @@ async def create_job(payload: JobCreateRequest):
         updates["font_color"] = payload.font_color
     if payload.subtitle_animation in ("none", "fade", "slide", "pop"):
         updates["subtitle_animation"] = payload.subtitle_animation
-    if payload.output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k"):
+    if payload.output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k", "tiktok4k"):
         updates["output_resolution"] = payload.output_resolution
     if updates:
         settings_manager.save(updates)
@@ -464,7 +464,7 @@ async def create_job_upload(
         updates["font_color"] = font_color
     if subtitle_animation in ("none", "fade", "slide", "pop"):
         updates["subtitle_animation"] = subtitle_animation
-    if output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k"):
+    if output_resolution in ("1080p", "2k", "4k", "tiktok1080", "tiktok2k", "tiktok4k"):
         updates["output_resolution"] = output_resolution
     if updates:
         settings_manager.save(updates)

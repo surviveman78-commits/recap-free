@@ -17,7 +17,7 @@ let voiceCatalog = { languages: [], voices_by_language: {} };
 let systemFonts = [];
 let fontFiles = {};
 let targetLanguages = [];
-const RESOLUTION_FONT_SIZES = { "1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140 };
+const RESOLUTION_FONT_SIZES = { "tiktok1080": 70, "tiktok2k": 94, "tiktok4k": 140 };
 let currentEventSource = null;
 let currentInputMode = "link";
 let selectedVideoMode = "recap";
@@ -272,7 +272,7 @@ async function autoSaveSubtitleSettings() {
         font_size_px: parseInt(fontSizeRange.value, 10),
         font_color: fontColorPicker.value,
         auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
-        output_resolution: outputResolution ? outputResolution.value : "1080p",
+        output_resolution: outputResolution ? outputResolution.value : "tiktok1080",
         enable_4k_filter: Boolean(enable4kFilterToggle && enable4kFilterToggle.checked),
         mirror_mode_7s: Boolean(mirrorMode7sToggle && mirrorMode7sToggle.checked)
       })
@@ -466,7 +466,10 @@ async function loadSettings() {
     appSettings = await res.json();
     if (appSettings.groq_api_key && groqApiKey) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
-    if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
+    if (appSettings.output_resolution && outputResolution) {
+      const legacyResolution = { "1080p": "tiktok1080", "2k": "tiktok2k", "4k": "tiktok4k" };
+      outputResolution.value = legacyResolution[appSettings.output_resolution] || appSettings.output_resolution;
+    }
     if (enable4kFilterToggle) enable4kFilterToggle.checked = Boolean(appSettings.enable_4k_filter);
     if (mirrorMode7sToggle) mirrorMode7sToggle.checked = Boolean(appSettings.mirror_mode_7s);
     if (appSettings.subtitle_animation && subtitleAnimationSelect) subtitleAnimationSelect.value = appSettings.subtitle_animation;
@@ -545,7 +548,7 @@ settingsForm.addEventListener("submit", async (e) => {
     subtitle_pos_y: subPosY,
     auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
     subtitle_animation: subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade",
-    output_resolution: outputResolution ? outputResolution.value : "1080p",
+    output_resolution: outputResolution ? outputResolution.value : "tiktok1080",
     enable_4k_filter: Boolean(enable4kFilterToggle && enable4kFilterToggle.checked),
     mirror_mode_7s: Boolean(mirrorMode7sToggle && mirrorMode7sToggle.checked)
   };
@@ -939,7 +942,7 @@ startBtn.addEventListener("click", async () => {
         body: JSON.stringify({
           video_url: url,
           target_language: chosenTargetLang,
-          output_resolution: outputResolution ? outputResolution.value : "1080p",
+          output_resolution: outputResolution ? outputResolution.value : "tiktok1080",
           subtitle_pos_x: subPosX,
           subtitle_pos_y: subPosY,
           font_style: fontStyleSelect.value,
@@ -1009,7 +1012,7 @@ startBtn.addEventListener("click", async () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("target_language", chosenTargetLang);
-    formData.append("output_resolution", outputResolution ? outputResolution.value : "1080p");
+    formData.append("output_resolution", outputResolution ? outputResolution.value : "tiktok1080");
     formData.append("subtitle_pos_x", subPosX);
     formData.append("subtitle_pos_y", subPosY);
     formData.append("font_style", fontStyleSelect.value);

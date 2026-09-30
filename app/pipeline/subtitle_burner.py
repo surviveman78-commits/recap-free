@@ -200,9 +200,9 @@ class SubtitleBurner:
         srt_path = output_dir / "subtitles.srt"
 
         resolution_key = str(output_resolution or "").lower()
-        resolution_sizes = {"1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140}
+        resolution_sizes = {"1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140, "tiktok4k": 140}
         preset = resolution_sizes.get(resolution_key)
-        profile_longest_sides = {"1080p": 1920, "tiktok1080": 1920, "tiktok2k": 2560, "2k": 2560, "4k": 3840}
+        profile_longest_sides = {"1080p": 1920, "tiktok1080": 1920, "tiktok2k": 2560, "2k": 2560, "4k": 3840, "tiktok4k": 3840}
         if preset is not None:
             # Keep the same perceived subtitle scale after preserving a
             # landscape/portrait source ratio instead of forcing a TikTok
@@ -317,7 +317,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         width, height = self._get_video_dimensions(video_path)
         output_profile = str(output_resolution or "").lower()
-        is_tiktok = output_profile in {"tiktok1080", "tiktok2k"}
+        is_tiktok = output_profile in {"tiktok1080", "tiktok2k", "tiktok4k"}
         # The mixer has already applied the selected output resolution. Keep
         # the resulting video's exact dimensions here so TikTok profiles do
         # not force a 9:16 crop onto landscape or other source ratios.
@@ -342,8 +342,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         tiktok_bitrate_args = {
             "tiktok1080": ("12M", "16M", "24M"),
             "tiktok2k": ("20M", "25M", "40M"),
+            "tiktok4k": ("35M", "45M", "60M"),
         }.get(output_profile)
-        tiktok_level = "5.0" if output_profile == "tiktok2k" else "4.2"
+        tiktok_level = "5.2" if output_profile == "tiktok4k" else "5.0" if output_profile == "tiktok2k" else "4.2"
         tiktok_encoder_args = [
             "-b:v", tiktok_bitrate_args[0],
             "-maxrate", tiktok_bitrate_args[1],
