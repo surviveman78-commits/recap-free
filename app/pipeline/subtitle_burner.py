@@ -199,8 +199,17 @@ class SubtitleBurner:
         ass_path = output_dir / "subtitles.ass"
         srt_path = output_dir / "subtitles.srt"
 
+        resolution_key = str(output_resolution or "").lower()
         resolution_sizes = {"1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140}
-        preset = resolution_sizes.get(str(output_resolution or "").lower())
+        preset = resolution_sizes.get(resolution_key)
+        profile_longest_sides = {"1080p": 1920, "tiktok1080": 1920, "tiktok2k": 2560, "2k": 2560, "4k": 3840}
+        if preset is not None:
+            # Keep the same perceived subtitle scale after preserving a
+            # landscape/portrait source ratio instead of forcing a TikTok
+            # canvas. Scale from the profile's intended longest side.
+            base_longest_side = profile_longest_sides[resolution_key]
+            actual_longest_side = max(video_width, video_height)
+            preset = max(18, round(preset * actual_longest_side / base_longest_side))
         if preset is None:
             longest_side = max(video_width, video_height)
             preset = 70 if longest_side <= 1920 else 94 if longest_side <= 2560 else 140
