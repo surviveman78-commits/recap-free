@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -54,7 +55,10 @@ class VocalSeparator:
             device = "cpu"
 
         command = [
-            "python3", "-m", "demucs",
+            # Use the interpreter running this app. ``python3`` is not a
+            # standard executable name on Windows, while sys.executable
+            # works in Windows venvs, Kaggle, and Linux environments alike.
+            sys.executable, "-m", "demucs",
             "--two-stems=vocals",
             "-n", "htdemucs",
             "-d", device,
