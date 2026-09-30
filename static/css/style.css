@@ -2890,3 +2890,22 @@ body.voiceclone-page .bv-voice-clone-modal .bv-modal-close-btn { display:none !i
   text-align: center;
   overflow: hidden;
 }
+
+/* Video processing mode cards */
+.bv-video-mode-panel { display:flex; flex-direction:column; gap:10px; padding:14px; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); background:var(--bg-input); box-shadow:var(--shadow-inset-3d); }
+.bv-video-mode-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.bv-video-mode-title { color:var(--text-main); font-size:.9rem; font-weight:800; }
+.bv-video-mode-caption { color:var(--text-muted); font-size:.74rem; }
+.bv-video-mode-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.bv-video-mode-card { position:relative; display:flex; min-width:0; min-height:68px; align-items:center; gap:8px; padding:10px 9px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--bg-card); color:var(--text-muted); text-align:left; cursor:pointer; box-shadow:var(--shadow-sm); transition:transform .18s ease,border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease; }
+.bv-video-mode-card:hover { transform:translateY(-1px); border-color:var(--primary); color:var(--text-main); }
+.bv-video-mode-card:active { transform:scale(.98); }
+.bv-video-mode-card.active { border-color:var(--primary); background:linear-gradient(145deg,var(--primary),var(--primary-dark,#4338ca)); color:#fff; box-shadow:0 8px 18px rgba(79,70,229,.24); }
+.bv-video-mode-icon { display:grid; width:27px; height:27px; flex:0 0 27px; place-items:center; border-radius:9px; background:rgba(99,102,241,.12); color:var(--primary); font-size:.78rem; font-weight:900; }
+.bv-video-mode-card.active .bv-video-mode-icon { background:rgba(255,255,255,.2); color:#fff; }
+.bv-video-mode-card strong { display:block; font-size:.78rem; line-height:1.1; }
+.bv-video-mode-card small { display:block; margin-top:4px; font-size:.66rem; line-height:1.2; opacity:.78; white-space:nowrap; }
+.bv-video-mode-check { display:none; margin-left:auto; font-size:.75rem; font-weight:900; }
+.bv-video-mode-card.active .bv-video-mode-check { display:block; }
+.bv-video-mode-hint { margin:0; color:var(--text-muted); font-size:.74rem; }
+@media (max-width:560px) { .bv-video-mode-panel { padding:11px; } .bv-video-mode-grid { gap:6px; } .bv-video-mode-card { min-height:62px; gap:5px; padding:8px 6px; } .bv-video-mode-icon { width:23px; height:23px; flex-basis:23px; border-radius:7px; font-size:.68rem; } .bv-video-mode-card strong { font-size:.7rem; } .bv-video-mode-card small { font-size:.56rem; white-space:normal; } }

@@ -3,6 +3,7 @@
 yt-dlp>=2025.01.15
 voxcpm>=0.1.0
 faster-whisper>=1.1.0
+demucs>=4.0.1
 transformers>=4.45.0
 sentencepiece>=0.2.0
 safetensors>=0.4.5

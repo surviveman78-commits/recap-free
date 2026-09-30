@@ -13,6 +13,7 @@ from app.pipeline.local_transcriber import LocalWhisperTranscriber
 from app.pipeline.local_translator import LocalNLLBTranslator
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.audio_mixer import AudioMixer
+from app.pipeline.vocal_separator import VocalSeparator
 from app.pipeline.subtitle_burner import SubtitleBurner
 from app.pipeline.gemini_blur_detector import GeminiSubtitleBandDetector, padded_band
 from app.pipeline.burmese_text import normalize_burmese_digits, prepare_burmese_tts_text
@@ -116,7 +117,11 @@ class PipelineOrchestrator:
         enable_subtitles: bool = True,
         auto_blur_subtitles: bool = False,
         auto_blur_padding_pct: float = 1.5,
-        output_resolution: str = "1080p"
+        output_resolution: str = "1080p",
+        preserve_original_background: bool = False,
+        processing_mode: str = "recap",
+        enable_4k_filter: bool = False,
+        mirror_mode_7s: bool = False,
     ) -> Dict[str, Any]:
         try:
             self.status = "running"
@@ -152,6 +157,20 @@ class PipelineOrchestrator:
             )
             original_audio = extractor.extract(video_file)
             self.artifacts["original_audio"] = original_audio.name
+            background_audio = None
+            # Story is narration-only. Recap and Dubbing remove the original
+            # human speech but keep the original music/effects bed underneath TTS.
+            keep_background = str(processing_mode).lower() != "story"
+            if keep_background:
+                separator = VocalSeparator(
+                    progress_callback=lambda msg, pct: self._notify(stage_2, 2, msg, 10.0 + pct * 0.08)
+                )
+                # Do not feed Demucs Whisper's mono 16 kHz copy. Preserve the
+                # original stereo/high-quality mix so music and SFX survive.
+                source_mix_audio = separator.extract_source_audio(video_file, self.job_dir / "original_mix_audio.wav")
+                self.artifacts["original_mix_audio"] = source_mix_audio.name
+                background_audio = separator.separate_background(source_mix_audio, self.job_dir)
+                self.artifacts["background_audio"] = str(background_audio.relative_to(self.job_dir))
 
             # ----------------------------------------------------
             # STAGE 3: အသံကို စာသားအဖြစ် ပြောင်းနေပါတယ်... (Local Whisper STT)
@@ -181,7 +200,10 @@ class PipelineOrchestrator:
             # STAGE 4: စာသားကို ဘာသာပြန် / ပြန်လည်ရေးသားနေပါတယ်... (Gemini)
             # ----------------------------------------------------
             stage_4 = STAGES[3]
-            if ai_mode == "local":
+            story_requires_gemini = str(processing_mode).lower() == "story"
+            if story_requires_gemini and not gemini_api_key:
+                raise ValueError("Story Mode အတွက် Gemini API Key လိုအပ်ပါသည်။ Story prompt ကို Gemini ဖြင့်သာ အသုံးပြုနိုင်ပါသည်။")
+            if ai_mode == "local" and not story_requires_gemini:
                 self._notify(stage_4, 4, "Local NLLB ဖြင့် မူရင်းအဓိပ္ပာယ်မပျက် ဘာသာပြန်နေပါသည်...", 15.0)
                 rewriter = LocalNLLBTranslator(
                     progress_callback=lambda msg, pct: self._notify(stage_4, 4, msg, pct)
@@ -198,7 +220,8 @@ class PipelineOrchestrator:
                     output_dir=self.job_dir,
                     mode=gemini_mode,
                     target_language=target_language,
-                    source_duration=transcript_duration
+                    source_duration=transcript_duration,
+                    processing_mode=processing_mode,
                 )
             tts_segments = []
             if str(target_language or "").lower().startswith("my"):
@@ -266,7 +289,14 @@ class PipelineOrchestrator:
             mixer = AudioMixer(
                 progress_callback=lambda msg, pct: self._notify(stage_6, 6, msg, pct)
             )
-            dubbed_video = mixer.mix(video_file, tts_audio, resolution=output_resolution)
+            dubbed_video = mixer.mix(
+                video_file,
+                tts_audio,
+                resolution=output_resolution,
+                background_audio_path=background_audio,
+                enable_4k_filter=bool(enable_4k_filter),
+                mirror_mode_7s=bool(mirror_mode_7s),
+            )
             self.artifacts["dubbed_video"] = dubbed_video.name
 
             # ----------------------------------------------------

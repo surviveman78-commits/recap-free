@@ -143,6 +143,7 @@ class GeminiRewriter:
         target_language: str = "my",
         model_name: str = DEFAULT_MODEL,
         source_duration: float = 0.0,
+        processing_mode: str = "recap",
     ) -> Dict[str, Any]:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -153,7 +154,28 @@ class GeminiRewriter:
         lang_name = TARGET_LANGUAGE_NAMES.get(target_language, target_language)
         source_text = groq_result.get("text", "")
         duration_rule = ""
-        if source_duration > 0:
+        active_mode = str(processing_mode or "recap").lower()
+        if source_duration > 0 and active_mode == "story":
+            duration_rule = f"""
+STORY COVERAGE AND LENGTH RULE:
+The source video is approximately {source_duration:.1f} seconds long. This is a
+full storytelling rewrite, not a short summary, but it must not repeat the source
+duration minute-for-minute. Cover the important sequence of events, actions,
+decisions, emotions, dangers, reveals, and consequences from the source. Do not
+collapse a long video into a tiny recap, but also do not narrate every pause or
+repeated visual detail. Target a natural spoken script of roughly 60–70% of the
+source duration when the source is long (for example, a 9-minute video should
+normally become about 5–6 minutes). Preserve the story's key meaning and suspense.
+The renderer will adjust the video to the final TTS duration.
+"""
+        elif source_duration > 0 and active_mode == "dubbing":
+            duration_rule = f"""
+DUBBING TIMING RULE:
+The source dialogue is approximately {source_duration:.1f} seconds long. Keep the
+translation close to the original timing. Do not intentionally expand the dialogue,
+repeat content, or pad it to reach one minute.
+"""
+        elif source_duration > 0:
             duration_rule = f"""
 NATURAL LENGTH RULE:
 The source narration is approximately {source_duration:.1f} seconds long. Make the
@@ -168,8 +190,45 @@ into the corresponding segment texts.
         if self.progress_callback:
             self.progress_callback("Transcript အပြည့်ကို ဖတ်ပြီး video အမျိုးအစား ခွဲနေပါသည်...", 10.0)
 
+        story_mode_prompt = """
+You are a professional movie/drama/anime recap writer.
+
+Transform the provided video into an engaging Burmese storytelling recap.
+
+Requirements:
+- Write in natural conversational Burmese.
+- Tell the story naturally, not scene-by-scene summarization.
+- Make the audience feel like they are experiencing the events together with the characters.
+- Focus on tension, emotions, danger, clever decisions, mistakes, twists, and unexpected moments.
+- Maintain strong viewer curiosity throughout the story.
+- Use natural storytelling transitions.
+- Avoid repetitive phrases and AI-sounding narration.
+- Keep the pacing smooth and engaging.
+- Build suspense naturally before important reveals.
+- Make every paragraph give viewers a reason to continue watching.
+
+Hook Style:
+- Do not use generic hooks such as “ဒါပေမယ့် သူ မသိသေးတာက...” or “နောက်ထပ် ဖြစ်လာမယ့်အရာက...”.
+- Create curiosity from the actual situation. Hooks may show that a character misunderstands danger, that a decision changes everything, that a hidden detail matters, or that expectations and reality diverge.
+
+Writing Style:
+- Natural spoken Burmese; short and clear sentences.
+- Emotional but believable, with no exaggerated clickbait.
+- No bullet points, chapter labels, or scene-by-scene headings.
+- Use one continuous storytelling flow that sounds like a human storyteller, not an AI summary.
+
+Output:
+Generate a complete Burmese recap script optimized for YouTube, TikTok, and Facebook storytelling videos with strong retention and natural audience engagement.
+"""
+        mode_instructions = {
+            "recap": "Rewrite as a concise movie-recap narration. Keep the important events and explain what happens naturally.",
+            "story": story_mode_prompt,
+            "dubbing": "Translate as natural spoken dubbing for the original scene. Preserve each speaker's meaning, emotion, intensity, and timing; do not summarize or turn dialogue into a narrator recap.",
+        }.get(str(processing_mode or "recap").lower(), "Rewrite as a natural movie-recap narration.")
         prompt = f"""
-Translate the transcript into natural spoken {lang_name} for movie recap voice-over.
+Translate the transcript into natural spoken {lang_name}.
+MODE: {processing_mode}
+MODE INSTRUCTION: {mode_instructions}
 
 Rules:
 
@@ -178,7 +237,7 @@ Rules:
 * Do not copy the original sentence structure if it sounds unnatural.
 * Do not summarize or remove important information.
 * Do not add explanations, details, opinions, or information that is not in the original.
-* Keep the translated length close to the original; the natural-length rule below is the maximum expansion policy.
+* Follow the mode-specific timing and coverage rule below; do not pad or repeat content.
 * Use natural conversational grammar and expressions.
 * Avoid overly formal/literary language.
 * Avoid unnecessary pronouns and words such as “၎င်း”, “၎င်းတို့”, “ဖြစ်သည်”, “ဖြစ်ကြသည်” in Burmese when they make the sentence sound unnatural.

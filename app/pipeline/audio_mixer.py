@@ -35,7 +35,10 @@ class AudioMixer:
         video_path: Path,
         tts_audio_path: Path,
         output_path: Optional[Path] = None,
-        resolution: str = "1080p"
+        resolution: str = "1080p",
+        background_audio_path: Optional[Path] = None,
+        enable_4k_filter: bool = False,
+        mirror_mode_7s: bool = False,
     ) -> Path:
         video_path = Path(video_path)
         tts_audio_path = Path(tts_audio_path)
@@ -44,6 +47,8 @@ class AudioMixer:
             raise FileNotFoundError(f"Video file not found: {video_path}")
         if not tts_audio_path.exists():
             raise FileNotFoundError(f"TTS audio not found: {tts_audio_path}")
+        if background_audio_path is not None and not Path(background_audio_path).exists():
+            raise FileNotFoundError(f"Background audio not found: {background_audio_path}")
 
         if output_path is None:
             output_path = video_path.parent / "dubbed_video.mp4"
@@ -87,14 +92,36 @@ class AudioMixer:
             f"h='if(gte(iw,ih),-2,{target_short_edge})':flags=lanczos"
         )
 
-        # Build FFmpeg command with GPU or CPU encoder
+        # Build FFmpeg command. Legacy mode maps TTS alone; background mode
+        # keeps Demucs' music/effects stem underneath the new narration.
+        input_args = ["-i", str(video_path), "-i", str(tts_audio_path)]
+        visual_filters = [f"setpts={pts_factor:.6f}*PTS", scale_filter]
+        if enable_4k_filter:
+            # A restrained enhancement pass: upscale/scale first, then improve
+            # contrast, color and perceived detail without changing the audio.
+            visual_filters.append("eq=contrast=1.08:brightness=0.02:saturation=1.08")
+            visual_filters.append("unsharp=5:5:0.45:5:5:0.0")
+        if mirror_mode_7s:
+            # Alternate orientation in seven-second windows: normal [0,7),
+            # flipped [7,14), then repeat. hflip supports FFmpeg timeline expr.
+            visual_filters.append("hflip=enable='gte(mod(t,14),7)'")
+        visual_filters.append("fps=30")
+        filter_complex = f"[0:v]{','.join(visual_filters)}[v]"
+        audio_map = "1:a:0"
+        if background_audio_path is not None:
+            input_args += ["-i", str(background_audio_path)]
+            filter_complex += (
+                f";[2:a]atrim=duration={tts_dur:.3f},asetpts=N/SR/TB,"
+                f"apad=whole_dur={tts_dur:.3f},atrim=duration={tts_dur:.3f}[bg]"
+                f";[1:a]atrim=duration={tts_dur:.3f},asetpts=N/SR/TB[tts]"
+                ";[bg][tts]amix=inputs=2:duration=longest:dropout_transition=0.2:normalize=0[a]"
+            )
+            audio_map = "[a]"
         cmd = [
-            "ffmpeg", "-y",
-            "-i", str(video_path),
-            "-i", str(tts_audio_path),
-            "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,{scale_filter},fps=30[v]",
+            "ffmpeg", "-y", *input_args,
+            "-filter_complex", filter_complex,
             "-map", "[v]",
-            "-map", "1:a:0",
+            "-map", audio_map,
             "-t", f"{tts_dur:.3f}",
             *encoder_args,
             "-c:a", "aac",
@@ -119,12 +146,10 @@ class AudioMixer:
             if "h264_nvenc" in encoder_args or "h264_mf" in encoder_args:
                 print("[GPU WARNING] GPU rendering failed; retrying with CPU libx264.")
                 fallback_cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(video_path),
-                    "-i", str(tts_audio_path),
-                    "-filter_complex", f"[0:v]setpts={pts_factor:.6f}*PTS,{scale_filter},fps=30[v]",
+                    "ffmpeg", "-y", *input_args,
+                    "-filter_complex", filter_complex,
                     "-map", "[v]",
-                    "-map", "1:a:0",
+                    "-map", audio_map,
                     "-t", f"{tts_dur:.3f}",
                     "-c:v", "libx264",
                     "-preset", "fast",

@@ -20,6 +20,7 @@ let targetLanguages = [];
 const RESOLUTION_FONT_SIZES = { "1080p": 70, "tiktok1080": 70, "tiktok2k": 94, "2k": 94, "4k": 140 };
 let currentEventSource = null;
 let currentInputMode = "link";
+let selectedVideoMode = "recap";
 
 // Active job tracking
 let activeJobId = null;        // currently watched job in main view
@@ -77,6 +78,8 @@ const tabContents = document.querySelectorAll(".bv-tab-content, .tab-content");
 const groqApiKey = document.getElementById("groqApiKey");
 const geminiApiKey = document.getElementById("geminiApiKey");
 const outputResolution = document.getElementById("outputResolution");
+const enable4kFilterToggle = document.getElementById("enable4kFilterToggle");
+const mirrorMode7sToggle = document.getElementById("mirrorMode7sToggle");
 const settingsTargetLang = document.getElementById("settingsTargetLang");
 const aiMode = document.getElementById("aiMode");
 const voiceEngine = document.getElementById("voiceEngine");
@@ -109,6 +112,22 @@ const posYLabel = document.getElementById("posYLabel");
 const resetPosBtn = document.getElementById("resetPosBtn");
 const ratio916Btn = document.getElementById("ratio916Btn");
 const ratio169Btn = document.getElementById("ratio169Btn");
+const videoModeButtons = document.querySelectorAll("[data-video-mode]");
+const videoModeHint = document.getElementById("videoModeHint");
+
+const VIDEO_MODE_HINTS = {
+  recap: "Recap narration + original music/effects",
+  story: "Story narration + original audio muted",
+  dubbing: "Translated dialogue + original music/effects",
+};
+
+function setVideoMode(mode) {
+  selectedVideoMode = ["recap", "story", "dubbing"].includes(mode) ? mode : "recap";
+  videoModeButtons.forEach((button) => button.classList.toggle("active", button.dataset.videoMode === selectedVideoMode));
+  if (videoModeHint) videoModeHint.textContent = VIDEO_MODE_HINTS[selectedVideoMode];
+}
+
+videoModeButtons.forEach((button) => button.addEventListener("click", () => setVideoMode(button.dataset.videoMode)));
 
 function cleanUserStatusMessage(message) {
   const text = String(message || "");
@@ -253,7 +272,9 @@ async function autoSaveSubtitleSettings() {
         font_size_px: parseInt(fontSizeRange.value, 10),
         font_color: fontColorPicker.value,
         auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
-        output_resolution: outputResolution ? outputResolution.value : "1080p"
+        output_resolution: outputResolution ? outputResolution.value : "1080p",
+        enable_4k_filter: Boolean(enable4kFilterToggle && enable4kFilterToggle.checked),
+        mirror_mode_7s: Boolean(mirrorMode7sToggle && mirrorMode7sToggle.checked)
       })
     });
   } catch (e) {
@@ -446,6 +467,8 @@ async function loadSettings() {
     if (appSettings.groq_api_key && groqApiKey) groqApiKey.placeholder = appSettings.groq_api_key;
     if (appSettings.gemini_api_key) geminiApiKey.placeholder = appSettings.gemini_api_key;
     if (appSettings.output_resolution && outputResolution) outputResolution.value = appSettings.output_resolution;
+    if (enable4kFilterToggle) enable4kFilterToggle.checked = Boolean(appSettings.enable_4k_filter);
+    if (mirrorMode7sToggle) mirrorMode7sToggle.checked = Boolean(appSettings.mirror_mode_7s);
     if (appSettings.subtitle_animation && subtitleAnimationSelect) subtitleAnimationSelect.value = appSettings.subtitle_animation;
     if (appSettings.ai_mode && aiMode) aiMode.value = appSettings.ai_mode;
     if (appSettings.target_language) { dashboardTargetLang.value = appSettings.target_language; settingsTargetLang.value = appSettings.target_language; }
@@ -522,7 +545,9 @@ settingsForm.addEventListener("submit", async (e) => {
     subtitle_pos_y: subPosY,
     auto_blur_subtitles: Boolean(autoBlurSubtitlesToggle && autoBlurSubtitlesToggle.checked),
     subtitle_animation: subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade",
-    output_resolution: outputResolution ? outputResolution.value : "1080p"
+    output_resolution: outputResolution ? outputResolution.value : "1080p",
+    enable_4k_filter: Boolean(enable4kFilterToggle && enable4kFilterToggle.checked),
+    mirror_mode_7s: Boolean(mirrorMode7sToggle && mirrorMode7sToggle.checked)
   };
   const groqVal = groqApiKey ? groqApiKey.value.trim() : "";
   if (groqVal && !groqVal.includes("*")) payload.groq_api_key = groqVal;
@@ -921,7 +946,8 @@ startBtn.addEventListener("click", async () => {
           font_size_px: parseInt(fontSizeRange.value, 10),
           font_color: fontColorPicker.value,
           subtitle_animation: subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade",
-          subtitle_enabled: subtitleEnabled
+          subtitle_enabled: subtitleEnabled,
+          processing_mode: selectedVideoMode
         })
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.detail || "Job creation failed"); }
@@ -991,6 +1017,7 @@ startBtn.addEventListener("click", async () => {
     formData.append("font_color", fontColorPicker.value);
     formData.append("subtitle_animation", subtitleAnimationSelect ? subtitleAnimationSelect.value : "fade");
     formData.append("subtitle_enabled", subtitleEnabled ? "true" : "false");
+    formData.append("processing_mode", selectedVideoMode);
 
     try {
       const res = await fetch("/api/jobs/upload", { method: "POST", body: formData });

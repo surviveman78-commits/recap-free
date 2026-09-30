@@ -77,6 +77,10 @@ class SettingsUpdateRequest(BaseModel):
     auto_blur_subtitles: Optional[bool] = None
     auto_blur_padding_pct: Optional[float] = None
     output_resolution: Optional[str] = None
+    preserve_original_background: Optional[bool] = None
+    processing_mode: Optional[str] = None
+    enable_4k_filter: Optional[bool] = None
+    mirror_mode_7s: Optional[bool] = None
 
 
 class JobCreateRequest(BaseModel):
@@ -90,6 +94,8 @@ class JobCreateRequest(BaseModel):
     font_color: Optional[str] = None
     subtitle_enabled: Optional[bool] = True
     output_resolution: Optional[str] = None
+    preserve_original_background: Optional[bool] = None
+    processing_mode: Optional[str] = "recap"
 
 
 @app.get("/api/settings")
@@ -368,7 +374,8 @@ async def get_job_status(job_id: str):
 @app.post("/api/jobs")
 async def create_job(payload: JobCreateRequest):
     ai_mode = settings_manager.get("ai_mode", "local")
-    if ai_mode != "local" and not settings_manager.get_gemini_key():
+    story_requires_gemini = payload.processing_mode == "story"
+    if (ai_mode != "local" or story_requires_gemini) and not settings_manager.get_gemini_key():
         raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     if not payload.video_url:
@@ -406,7 +413,9 @@ async def create_job(payload: JobCreateRequest):
         subtitle_pos_x=payload.subtitle_pos_x,
         subtitle_pos_y=payload.subtitle_pos_y,
         subtitle_animation=payload.subtitle_animation,
-        output_resolution=payload.output_resolution
+        output_resolution=payload.output_resolution,
+        preserve_original_background=(bool(payload.preserve_original_background) if payload.preserve_original_background is not None else bool(settings_manager.get("preserve_original_background", False))),
+        processing_mode=payload.processing_mode if payload.processing_mode in ("recap", "story", "dubbing") else "recap"
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)
@@ -431,10 +440,13 @@ async def create_job_upload(
     font_color: Optional[str] = Form(None),
     subtitle_animation: Optional[str] = Form(None),
     subtitle_enabled: Optional[str] = Form(None),
-    output_resolution: Optional[str] = Form(None)
+    output_resolution: Optional[str] = Form(None),
+    preserve_original_background: Optional[str] = Form(None),
+    processing_mode: Optional[str] = Form("recap")
 ):
     ai_mode = settings_manager.get("ai_mode", "local")
-    if ai_mode != "local" and not settings_manager.get_gemini_key():
+    story_requires_gemini = processing_mode == "story"
+    if (ai_mode != "local" or story_requires_gemini) and not settings_manager.get_gemini_key():
         raise HTTPException(status_code=400, detail="Gemini API Key ထည့်သွင်းပေးရန် လိုအပ်ပါသည်။ (Settings တွင် ထည့်ပါ)")
 
     updates = {}
@@ -460,6 +472,11 @@ async def create_job_upload(
     sub_enabled = True
     if subtitle_enabled is not None:
         sub_enabled = subtitle_enabled.lower() not in ("false", "0", "no")
+    keep_background = (
+        preserve_original_background.lower() not in ("false", "0", "no")
+        if preserve_original_background is not None
+        else bool(settings_manager.get("preserve_original_background", False))
+    )
 
     # Stash uploaded file in dedicated uploads folder
     upload_dir = DATA_DIR / "uploads"
@@ -482,7 +499,9 @@ async def create_job_upload(
         subtitle_pos_x=subtitle_pos_x,
         subtitle_pos_y=subtitle_pos_y,
         subtitle_animation=subtitle_animation,
-        output_resolution=output_resolution
+        output_resolution=output_resolution,
+        preserve_original_background=keep_background,
+        processing_mode=processing_mode if processing_mode in ("recap", "story", "dubbing") else "recap"
     )
 
     q_pos = job_queue_manager.get_queue_position(job_id)

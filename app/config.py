@@ -69,6 +69,10 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "enable_subtitles": True,
     "auto_blur_subtitles": False,
     "auto_blur_padding_pct": 1.5,
+    "preserve_original_background": False,
+    "processing_mode": "recap",
+    "enable_4k_filter": False,
+    "mirror_mode_7s": False,
 }
 
 

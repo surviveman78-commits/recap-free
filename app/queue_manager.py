@@ -103,7 +103,8 @@ class JobQueueManager:
     def submit_job(self, video_url=None, uploaded_video_path=None, target_language=None,
                    enable_subtitles=True, font_color=None, font_size_px=None,
                    font_style=None, subtitle_pos_x=None, subtitle_pos_y=None,
-                   subtitle_animation=None, output_resolution=None) -> str:
+                   subtitle_animation=None, output_resolution=None,
+                   preserve_original_background=False, processing_mode="recap") -> str:
         job_id = f"job_{uuid.uuid4().hex[:8]}"
         job_dir = JOBS_DIR / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -123,6 +124,14 @@ class JobQueueManager:
             "auto_blur_subtitles": bool(settings_manager.get("auto_blur_subtitles", False)),
             "auto_blur_padding_pct": float(settings_manager.get("auto_blur_padding_pct", 1.5)),
             "output_resolution": (output_resolution or settings_manager.get("output_resolution", "1080p")).lower(),
+            "preserve_original_background": (
+                bool(preserve_original_background)
+                if preserve_original_background is not None
+                else bool(settings_manager.get("preserve_original_background", False))
+            ),
+            "processing_mode": processing_mode if processing_mode in ("recap", "story", "dubbing") else "recap",
+            "enable_4k_filter": bool(settings_manager.get("enable_4k_filter", False)),
+            "mirror_mode_7s": bool(settings_manager.get("mirror_mode_7s", False)),
             "voice_engine": engine, "created_at": time.time(), "status": "queued",
             "stage": "တန်းစီဇယားတွင် စောင့်ဆိုင်းနေပါသည်...", "progress": 0.0,
         }
@@ -215,6 +224,10 @@ class JobQueueManager:
             auto_blur_subtitles=job_data.get("auto_blur_subtitles", False),
             auto_blur_padding_pct=job_data.get("auto_blur_padding_pct", 1.5),
             output_resolution=job_data.get("output_resolution", "1080p"),
+            preserve_original_background=job_data.get("preserve_original_background", False),
+            processing_mode=job_data.get("processing_mode", "recap"),
+            enable_4k_filter=job_data.get("enable_4k_filter", False),
+            mirror_mode_7s=job_data.get("mirror_mode_7s", False),
         )
         with self.lock:
             self.jobs[job_id].update(
