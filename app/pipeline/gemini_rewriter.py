@@ -92,6 +92,36 @@ class GeminiRewriter:
             for src, dst in zip(source, output)
         ]
 
+    @staticmethod
+    def _normalise_hook(parsed: Dict[str, Any], source_segments: List[Dict[str, Any]], active_mode: str) -> Optional[Dict[str, Any]]:
+        """Accept only a short, source-linked hook for Recap/Story modes."""
+        if active_mode not in {"recap", "story"}:
+            return None
+        raw = parsed.get("hook") or {}
+        if not isinstance(raw, dict) or raw.get("use_hook") is not True:
+            return None
+        text = normalize_myanmar_text(str(raw.get("text", "")).strip())
+        source_ids = raw.get("source_segment_ids") or []
+        valid_ids = {seg.get("id") for seg in source_segments}
+        if not text or not isinstance(source_ids, list) or not source_ids:
+            return None
+        if not all(item in valid_ids for item in source_ids):
+            return None
+        # Keep the opening hook short enough to speak in roughly three
+        # seconds; this is a guardrail in addition to the model instruction.
+        if len(text) > 100 or len(source_ids) > 4:
+            return None
+        return {
+            "id": "hook",
+            "start": 0.0,
+            "end": 0.0,
+            "text": text,
+            "role": "hook",
+            "source_segment_ids": source_ids,
+            "hook_type": str(raw.get("hook_type") or "conflict"),
+            "confidence": float(raw.get("confidence") or 0.0),
+        }
+
     def _generate(self, prompt: str, model_candidates: List[str]) -> str:
         last_err = None
         for candidate in dict.fromkeys(model_candidates):
@@ -261,6 +291,13 @@ OUTPUT: Return ONLY valid JSON with this exact shape:
   "tone": "short description",
   "glossary": [{{"source": "term", "target": "translation"}}],
   "full_text": "joined translated text",
+  "hook": {{
+    "use_hook": true,
+    "text": "1 to 3 short source-grounded Burmese sentences",
+    "source_segment_ids": [0],
+    "hook_type": "danger|mystery|conflict|unexpected_change|emotion|none",
+    "confidence": 0.0
+  }},
   "segments": [
     {{"id": 0, "start": 0.0, "end": 2.5, "text": "translation"}}
   ]
@@ -271,6 +308,20 @@ SOURCE FULL TRANSCRIPT:
 
 SOURCE TIMED SEGMENTS:
 {json.dumps(source_segments, ensure_ascii=False, indent=2)}
+
+HOOK RULES (Recap and Story only):
+* First inspect the full transcript and choose the strongest source-supported conflict,
+  danger, mystery, unexpected change, or turning point.
+* Write one very short natural Burmese opening hook from that event, without inventing facts.
+* Do not reveal the complete ending, identity reveal, or full twist.
+* The hook is a preview, not a new event and not a summary of the whole video.
+* Link it to the exact source segment ids used.
+* Target approximately 3 seconds when spoken: one short sentence or two very short clauses,
+  normally no more than about 100 Unicode characters. If it cannot fit naturally, return
+  use_hook=false and an empty text.
+* If no clear supportable hook exists, return use_hook=false and an empty text.
+* For Dubbing mode, always return use_hook=false; translate original dialogue only.
+* The main segments must still preserve every source segment and must not be removed.
 """
 
         if self.progress_callback:
@@ -306,6 +357,9 @@ VALIDATION_ERROR={reason}
             raise RuntimeError(f"Translation validation failed: {reason}")
 
         processed_segments = self._normalise_segments(source_segments, translated)
+        hook = self._normalise_hook(parsed, source_segments, active_mode)
+        if hook:
+            processed_segments = [hook, *processed_segments]
         processed_full_text = "\n".join(s["text"] for s in processed_segments)
         metadata = {
             "content_type": parsed.get("content_type", "conversation"),
@@ -314,6 +368,7 @@ VALIDATION_ERROR={reason}
             "source_segment_count": len(source_segments),
             "meaning_policy": "faithful_natural_translation_no_summarization",
             "model_order": model_order,
+            "hook": hook,
         }
 
         if self.progress_callback:
@@ -342,5 +397,6 @@ VALIDATION_ERROR={reason}
             "json_path": processed_json_path,
             "full_text": processed_full_text,
             "segments": processed_segments,
+            "hook": hook,
             "analysis": metadata,
         }
