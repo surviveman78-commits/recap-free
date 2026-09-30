@@ -41,8 +41,23 @@ class LocalWhisperTranscriber:
             self.progress_callback("Local Whisper model ကို load လုပ်နေပါသည်...", 10.0)
 
         model = self._load_model()
+        # faster-whisper's path decoder passes ``metadata_errors`` to PyAV.
+        # Some Kaggle/PyAV combinations removed that keyword from av.open(),
+        # so decode our already-normalized 16 kHz WAV with soundfile and pass
+        # samples directly. This also avoids a second FFmpeg/PyAV decode path.
+        try:
+            import soundfile as sf
+            import numpy as np
+
+            audio_samples, _sample_rate = sf.read(str(audio_path), dtype="float32", always_2d=False)
+            if getattr(audio_samples, "ndim", 1) > 1:
+                audio_samples = audio_samples.mean(axis=1)
+            audio_input = np.asarray(audio_samples, dtype=np.float32)
+        except Exception:
+            # Keep a path fallback for installations without soundfile.
+            audio_input = str(audio_path)
         segments_iter, info = model.transcribe(
-            str(audio_path),
+            audio_input,
             beam_size=int(os.getenv("RECAP_WHISPER_BEAM_SIZE", "5")),
             vad_filter=True,
             condition_on_previous_text=True,
