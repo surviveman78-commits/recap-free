@@ -161,16 +161,8 @@ class PipelineOrchestrator:
             # Story is narration-only. Recap and Dubbing remove the original
             # human speech but keep the original music/effects bed underneath TTS.
             keep_background = str(processing_mode).lower() != "story"
-            if keep_background:
-                separator = VocalSeparator(
-                    progress_callback=lambda msg, pct: self._notify(stage_2, 2, msg, 10.0 + pct * 0.08)
-                )
-                # Do not feed Demucs Whisper's mono 16 kHz copy. Preserve the
-                # original stereo/high-quality mix so music and SFX survive.
-                source_mix_audio = separator.extract_source_audio(video_file, self.job_dir / "original_mix_audio.wav")
-                self.artifacts["original_mix_audio"] = source_mix_audio.name
-                background_audio = separator.separate_background(source_mix_audio, self.job_dir)
-                self.artifacts["background_audio"] = str(background_audio.relative_to(self.job_dir))
+            # IMPORTANT: do not run Demucs here. Whisper must transcribe the
+            # complete extracted audio while the original voice is still present.
 
             # ----------------------------------------------------
             # STAGE 3: အသံကို စာသားအဖြစ် ပြောင်းနေပါတယ်... (Local Whisper STT)
@@ -282,10 +274,25 @@ class PipelineOrchestrator:
             self.artifacts["tts_audio"] = tts_audio.name
 
             # ----------------------------------------------------
-            # STAGE 6: ဗီဒီယိုနဲ့ အသံ ပေါင်းနေပါတယ်... (Speed Matching via setpts)
+            # STAGE 6: Music/SFX ကို voice မှ ခွဲထုတ်နေပါတယ်...
             # ----------------------------------------------------
             stage_6 = STAGES[5]
-            self._notify(stage_6, 6, "ဗီဒီယို speed ကို ဇာတ်လမ်းပြောအသံနှင့် ကိုက်ညီအောင် ညှိနေပါသည်...", 15.0)
+            if keep_background:
+                self._notify(stage_6, 6, "မူရင်း voice ကို music/SFX မှ ခွဲထုတ်နေပါသည်...", 10.0)
+                separator = VocalSeparator(
+                    progress_callback=lambda msg, pct: self._notify(stage_6, 6, msg, 10.0 + pct * 0.35)
+                )
+                # Demucs receives the original stereo/high-quality mix only
+                # after Whisper and TTS have finished using the full vocal mix.
+                source_mix_audio = separator.extract_source_audio(video_file, self.job_dir / "original_mix_audio.wav")
+                self.artifacts["original_mix_audio"] = source_mix_audio.name
+                background_audio = separator.separate_background(source_mix_audio, self.job_dir)
+                self.artifacts["background_audio"] = str(background_audio.relative_to(self.job_dir))
+
+            # ----------------------------------------------------
+            # STAGE 6: ဗီဒီယိုနဲ့ အသံ ပေါင်းနေပါတယ်... (Speed Matching via setpts)
+            # ----------------------------------------------------
+            self._notify(stage_6, 6, "Video + Music/SFX ကို TTS ကြာချိန်နှင့် ကိုက်ညီအောင် ညှိနေပါသည်...", 50.0)
             mixer = AudioMixer(
                 progress_callback=lambda msg, pct: self._notify(stage_6, 6, msg, pct)
             )

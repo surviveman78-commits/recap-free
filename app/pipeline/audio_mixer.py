@@ -30,6 +30,23 @@ class AudioMixer:
         except ValueError:
             return 0.0
 
+    @staticmethod
+    def _atempo_chain(speed: float) -> str:
+        """Build valid atempo filters for any positive duration ratio."""
+        if speed <= 0:
+            return "atempo=1.0"
+        filters = []
+        # FFmpeg's atempo accepts 0.5..2.0 per filter. Chain filters for
+        # longer/shorter stretches instead of silently truncating the bed.
+        while speed > 2.0:
+            filters.append("atempo=2.0")
+            speed /= 2.0
+        while speed < 0.5:
+            filters.append("atempo=0.5")
+            speed /= 0.5
+        filters.append(f"atempo={speed:.6f}")
+        return ",".join(filters)
+
     def mix(
         self,
         video_path: Path,
@@ -110,9 +127,18 @@ class AudioMixer:
         audio_map = "1:a:0"
         if background_audio_path is not None:
             input_args += ["-i", str(background_audio_path)]
+            background_dur = self._get_duration(Path(background_audio_path))
+            if background_dur <= 0:
+                background_dur = tts_dur
+            # The source bed follows the rendered video source duration. It
+            # must be stretched/compressed to the same TTS duration before
+            # mixing, otherwise music/SFX will drift or end early.
+            background_speed = background_dur / tts_dur
+            background_atempo = self._atempo_chain(background_speed)
             filter_complex += (
-                f";[2:a]atrim=duration={tts_dur:.3f},asetpts=N/SR/TB,"
-                f"apad=whole_dur={tts_dur:.3f},atrim=duration={tts_dur:.3f}[bg]"
+                f";[2:a]atrim=duration={background_dur:.3f},asetpts=N/SR/TB,"
+                f"{background_atempo},apad=whole_dur={tts_dur:.3f},"
+                f"atrim=duration={tts_dur:.3f}[bg]"
                 f";[1:a]atrim=duration={tts_dur:.3f},asetpts=N/SR/TB[tts]"
                 ";[bg][tts]amix=inputs=2:duration=longest:dropout_transition=0.2:normalize=0[a]"
             )
