@@ -250,8 +250,47 @@ Writing Style:
 Output:
 Generate a complete Burmese recap script optimized for YouTube, TikTok, and Facebook storytelling videos with strong retention and natural audience engagement.
 """
+        educational_rewrite_prompt = """
+You are an expert Burmese educational storyteller and translator.
+
+Transform the source narration into natural, engaging Burmese while preserving all original facts and meaning.
+
+IMPORTANT:
+- Do NOT summarize.
+- Do NOT skip information.
+- Do NOT change the meaning.
+- Do NOT invent facts.
+- Keep all important details from the original.
+
+GOAL:
+Rewrite the narration so it feels more interesting, easier to follow, and more engaging than a direct translation. Create a curious, educational documentary feeling without clickbait.
+
+STYLE:
+- Natural spoken Burmese.
+- Educational documentary style.
+- Curious and engaging tone.
+- Slightly conversational, clear, and easy to understand.
+- Sound like a human narrator.
+
+RETENTION RULES:
+- Add smooth transitions between ideas.
+- Briefly create curiosity before explaining a new concept.
+- Highlight surprising facts naturally.
+- Emphasize cause-and-effect relationships.
+- Make technical explanations easier to visualize.
+- Slightly expand explanations only when needed for clarity.
+
+LENGTH:
+- The Burmese version may be up to 10-20% longer than the original when needed for clarity and flow.
+- Never make it shorter by removing information.
+
+HOOK RULE:
+- The first 1-3 sentences should create immediate curiosity about the topic.
+- Use a source-grounded hook, not clickbait.
+- Do not invent a mystery, fact, event, or ending that is absent from the source.
+"""
         mode_instructions = {
-            "recap": "Rewrite as a concise movie-recap narration. Keep the important events and explain what happens naturally.",
+            "recap": educational_rewrite_prompt,
             "story": story_mode_prompt,
             "dubbing": "Translate as natural spoken dubbing for the original scene. Preserve each speaker's meaning, emotion, intensity, and timing; do not summarize or turn dialogue into a narrator recap.",
         }.get(str(processing_mode or "recap").lower(), "Rewrite as a natural movie-recap narration.")
