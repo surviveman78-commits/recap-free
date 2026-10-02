@@ -1,6 +1,7 @@
 import subprocess
 import shutil
 import re
+import os
 from typing import List
 
 _GPU_ENCODER_CHECKED = False
@@ -26,8 +27,9 @@ def _detect_gpu_encoder():
     # 1. Try h264_nvenc (Standard Linux / Kaggle / Supported Windows drivers)
     try:
         test_nvenc = [
-            "ffmpeg", "-y",
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
             "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.04",
+            "-frames:v", "1",
             "-c:v", "h264_nvenc",
             "-f", "null", "-"
         ]
@@ -38,8 +40,11 @@ def _detect_gpu_encoder():
             _ENCODER_DESC = "NVIDIA NVENC (GPU)"
             print("[GPU ACCELERATION] NVIDIA NVENC hardware encoding is active and verified.")
             return
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[GPU WARNING] NVENC preflight exception: {exc}", flush=True)
+    else:
+        if p.returncode != 0 and p.stderr.strip():
+            print(f"[GPU WARNING] NVENC unavailable: {p.stderr.strip()[:500]}", flush=True)
 
     # 2. Try h264_mf with hardware encoding (Windows NVIDIA RTX / DirectX MFT)
     try:
@@ -76,7 +81,7 @@ def check_gpu_nvenc_available() -> bool:
     return _GPU_ENCODER_AVAILABLE
 
 
-def get_video_encoder_args(cq: int = 18, crf: int = 17) -> List[str]:
+def get_video_encoder_args(cq: int = 18, crf: int = 17, gpu_index: int | None = None) -> List[str]:
     """
     Returns optimal FFmpeg video encoder arguments for high quality 4K output.
     If NVIDIA NVENC or Hardware MFT is available, uses GPU encoding for ultra-fast rendering.
@@ -85,13 +90,19 @@ def get_video_encoder_args(cq: int = 18, crf: int = 17) -> List[str]:
     _detect_gpu_encoder()
 
     if _DETECTED_ENCODER == "h264_nvenc":
-        return [
+        args = [
             "-c:v", "h264_nvenc",
             "-preset", "p4",
             "-cq", str(cq),
             "-b:v", "0",
             "-pix_fmt", "yuv420p"
         ]
+        selected_gpu = gpu_index
+        if selected_gpu is None and os.getenv("RECAP_VIDEO_GPU_INDEX", "").isdigit():
+            selected_gpu = int(os.getenv("RECAP_VIDEO_GPU_INDEX", "0"))
+        if selected_gpu is not None:
+            args[2:2] = ["-gpu", str(selected_gpu)]
+        return args
     elif _DETECTED_ENCODER == "h264_mf":
         return [
             "-c:v", "h264_mf",

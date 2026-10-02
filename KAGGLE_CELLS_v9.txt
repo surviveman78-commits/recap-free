@@ -1,16 +1,16 @@
 RECAP FREE — KAGGLE RUN CELLS v11 LOCAL AI
 =================================
 
-v11 concurrency + font/animation/error UI:
+v12 concurrency + CUDA/NVENC preflight + font/animation/error UI:
 - Edge TTS: အများဆုံး ၃ ပုဒ် တစ်ပြိုင်တည်း
-- VoxCPM2: အများဆုံး ၁ ပုဒ် တစ်ပြိုင်တည်း; GPU တစ်လုံးကိုသာ အသုံးပြုမည်
+- VoxCPM2: T4 GPU တစ်လုံးစီတွင် job တစ်ခု၊ GPU ၂လုံးရှိလျှင် job ၂ခု တစ်ပြိုင်တည်း
 - Slot ပြည့်ရင် အဲဒီ engine queue ထဲစောင့်မည်
 - Job တင်ချိန်မှာရွေးထားတဲ့ Voice Engine ကို snapshot သိမ်းမည်
 - Local AI: faster-whisper + NLLB-200 ကို cell ကနေ ကြို download လုပ်မည်
 - Transcription: Local faster-whisper ကို အမြဲသုံးမည်; Groq Speech-to-Text flow ဖြုတ်ထားသည်
 - Translation: Local AI ရွေးလျှင် Local NLLB; Cloud API ရွေးလျှင် Gemini API သာ သုံးမည်
 
-သတိ: VoxCPM2 က 2B model ဖြစ်လို့ T4 16 GB တစ်လုံးစီမှာ model load/OOM ဖြစ်နိုင်ပါသည်။ v9 က cuda:0/cuda:1 ခွဲပေးထားသော်လည်း Cell 3 model load test နဲ့အရင်စစ်ပါ။
+သတိ: Kaggle Notebook Settings တွင် Accelerator = GPU (T4 x2) နှင့် Internet = ON ဖြစ်ရမည်။ Cell 3 သည် CUDA ၂လုံး၊ VoxCPM model load နှင့် NVENC ကို အရင်စစ်ပြီး မအောင်မြင်လျှင် အကြောင်းရင်းကို တိတိကျကျပြပါမည်။
 
 CELL 1 — Production GitHub clone
 ----------------------
@@ -78,17 +78,29 @@ print('VoxCPM2 ready:', voxcpm_dir)
 print('Local Whisper ready:', whisper_dir)
 print('Local NLLB ready:', nllb_dir)
 
-# GPU/NVENC preflight: GPU is preferred; the app keeps a CPU fallback.
-import subprocess, torch
-gpu_count = torch.cuda.device_count()
+# CUDA + NVENC preflight: run this before starting the server.
+import os, subprocess, torch
+print('PyTorch:', torch.__version__, 'CUDA build:', torch.version.cuda)
+print('torch.cuda.is_available():', torch.cuda.is_available())
+gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
 print('GPU count:', gpu_count)
+for i in range(gpu_count):
+    props = torch.cuda.get_device_properties(i)
+    print(f'GPU {i}: {props.name} | {props.total_memory / 1024**3:.1f} GB')
+assert gpu_count >= 2, 'CUDA GPU ၂လုံးမတွေ့ပါ။ Kaggle Settings > Accelerator ကို T4 x2 ပြောင်းပြီး runtime ပြန်စပါ။'
+for i in range(gpu_count):
+    torch.cuda.set_device(i)
+    x = torch.zeros(1, device=f'cuda:{i}')
+    assert x.is_cuda, f'cuda:{i} tensor test failed'
+print('CUDA tensor test: GPU 0/1 OK')
 nvenc_test = subprocess.run([
     'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'lavfi', '-i', 'color=c=black:s=256x256:d=0.10',
     '-frames:v', '1', '-c:v', 'h264_nvenc', '-f', 'null', '-'
 ], capture_output=True, text=True)
 if nvenc_test.returncode != 0:
-    print('WARNING: NVENC မရပါ။ Video rendering သည် libx264 CPU fallback သုံးပါမည်။ Raw FFmpeg diagnostics ကို UI မှာ မပြပါ။')
+    print('WARNING: NVENC မရပါ။ Raw diagnostics:', nvenc_test.stderr.strip())
+    print('Video rendering သည် libx264 CPU fallback သုံးပါမည်။')
 else:
     print('GPU/NVENC preflight OK — video rendering will prefer h264_nvenc.')
 
@@ -103,16 +115,16 @@ UI အသုံးပြုရန်
 --------------
 1. Settings ထဲမှာ AI Mode ကို **Local AI** ထားပါ။ Local mode မှာ API key မလိုပါ။
 2. Voice Engine ကို Edge TTS ထားပြီး video ၃ ပုဒ်အထိ တစ်ပြိုင်တည်းတင်နိုင်ပါမည်။
-3. Voice Engine ကို VoxCPM2 ထားပြီး video ၁ ပုဒ်ကိုသာ တစ်ချိန်တည်းလုပ်ပါမည်။
+3. Voice Engine ကို VoxCPM2 ထားလျှင် T4 GPU ၂လုံးအတွက် video ၂ပုဒ်အထိ တစ်ချိန်တည်းလုပ်ပါမည်။
 4. Slot ပြည့်လျှင် နောက် job သည် queue ထဲဝင်ပြီး slot လွတ်တာနဲ့ အလိုအလျောက်စပါမည်။
 5. Job တစ်ခုတင်ပြီးနောက် Voice Engine ပြောင်းလည်း အဲဒီ job က တင်ချိန်က engine ကိုပဲသုံးပါမည်။
 6. Font default သည် **Z10-Cartoon** ဖြစ်ပြီး **MyanmarThuriya** က ဒုတိယ priority ဖြစ်ပါသည်။ Settings ထဲတွင် Burmese live preview ဖြင့် font ရွေးပါ။
 7. Subtitle Animation တွင် Fade / Slide / Pop / None ရွေးနိုင်ပါသည်။ Default သည် Fade ဖြစ်ပါသည်။
 8. Subtitle size သည် 1080p = 70px, 2K = 94px, 4K = 140px ဖြစ်ပြီး ဘေးနှစ်ဘက် safe margin ၁၀% ထားပါသည်။
-9. NVENC မရပါက libx264 CPU fallback သုံးမည်။ UI တွင် raw `libcuda.so.1` / FFmpeg log မပြဘဲ ရှင်းလင်းသော Burmese error သာ ပြပါမည်။
+9. NVENC မရပါက raw `libcuda.so.1` / FFmpeg diagnostic ကို Cell 3 output တွင်ပြပြီးမှ libx264 CPU fallback သုံးမည်။
 10. Cloud translation သုံးလိုပါက AI Mode ကို **Cloud API** ပြောင်းပြီး Gemini API key တစ်ခုတည်း ထည့်ပါ။ Speech-to-Text အတွက် API key မလိုပါ။
 
-UI မှာ Edge TTS ၃ jobs နဲ့ VoxCPM2 ၁ job ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
+UI မှာ Edge TTS ၃ jobs နဲ့ VoxCPM2 GPU ၂ jobs ကို သီးခြားတွက်ပါမည်။ Cloud API rate limit/CPU/RAM ကြောင့် လက်တွေ့အမြန်နှုန်း ကွာနိုင်ပါသည်။
 
 
 OPTIONAL PRECHECK — T4 နှစ်လုံးစစ်ရန်

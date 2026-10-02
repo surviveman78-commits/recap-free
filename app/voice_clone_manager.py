@@ -8,13 +8,13 @@ from typing import Any, Dict, List
 
 from app.config import DATA_DIR
 from app.pipeline.tts_engine import TTSEngine
+from app.pipeline.gpu_pool import cuda_pool
 from app.pipeline.burmese_text import prepare_burmese_tts_text
 
 VOICE_CLONE_DIR = DATA_DIR / "voice_clone_jobs"
 VOICE_CLONE_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = VOICE_CLONE_DIR / "history.json"
 _lock = threading.Lock()
-_voxcpm_slot = threading.Semaphore(1)
 _jobs: Dict[str, Dict[str, Any]] = {}
 
 
@@ -108,7 +108,7 @@ def _update(job_id: str, **changes: Any) -> None:
 def _run_job(job_id: str, reference_path: str, reference_text: str, script: str) -> None:
     try:
         _update(job_id, status="queued", stage="VoxCPM2 slot လွတ်ရန် စောင့်နေပါသည်...", progress=1)
-        with _voxcpm_slot:
+        with cuda_pool.device() as assigned_device:
             _update(job_id, status="running", stage="VoxCPM2 model load / voice clone စတင်နေပါသည်...", progress=5)
             segments = _split_script(script)
             if not segments:
@@ -128,7 +128,7 @@ def _run_job(job_id: str, reference_path: str, reference_text: str, script: str)
                 voice="",
                 voxcpm_ref_path=reference_path,
                 voxcpm_ref_text=reference_text,
-                voxcpm_device=None,
+                voxcpm_device=assigned_device,
             )
             final_path = output_dir / "voice_clone.wav"
             Path(audio_path).replace(final_path)

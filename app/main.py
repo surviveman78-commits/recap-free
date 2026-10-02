@@ -17,6 +17,7 @@ from app.config import settings_manager, DATA_DIR, CUSTOM_VOICES_DIR, CUSTOM_FON
 from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
 from app.pipeline.tts_engine import TTSEngine
 from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_available, get_encoder_hardware_desc
+from app.pipeline.gpu_pool import cuda_pool
 from app.queue_manager import job_queue_manager, EDGE_MAX_CONCURRENT, VOXCPM_MAX_CONCURRENT
 from app.voice_clone_manager import create_job as create_voice_clone_job, get_job as get_voice_clone_job, list_jobs as list_voice_clone_jobs, VOICE_CLONE_DIR
 
@@ -333,7 +334,8 @@ async def get_gpu_status():
     return {
         "gpu_accelerated": has_gpu,
         "encoder": get_active_encoder_name(),
-        "hardware": get_encoder_hardware_desc()
+        "hardware": get_encoder_hardware_desc(),
+        "cuda_devices": cuda_pool.status(),
     }
 
 

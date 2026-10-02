@@ -10,12 +10,13 @@ from typing import Any, Dict, List, Optional
 
 from app.config import DATA_DIR, settings_manager
 from app.pipeline.orchestrator import PipelineOrchestrator, STAGES
+from app.pipeline.gpu_pool import cuda_pool
 
 JOBS_DIR = DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 EDGE_MAX_CONCURRENT = 3
-VOXCPM_MAX_CONCURRENT = 1
+VOXCPM_MAX_CONCURRENT = max(1, len(cuda_pool.devices))
 
 
 class JobQueueManager:
@@ -165,13 +166,18 @@ class JobQueueManager:
                 self.pending_jobs.remove(selected)
                 job_id = selected["job_id"]
                 engine = selected["voice_engine"]
+                if engine == "voxcpm2":
+                    selected["voxcpm_device"] = cuda_pool.try_acquire()
+                    if cuda_pool.devices and not selected["voxcpm_device"]:
+                        self.pending_jobs.insert(0, selected)
+                        self.condition.wait(timeout=0.5)
+                        continue
                 self.active_jobs[job_id] = selected
                 self.active_counts[engine] += 1
                 self.active_job_id = next(iter(self.active_jobs), None)
                 self.jobs[job_id]["status"] = "running"
                 self.jobs[job_id]["slot"] = f"{engine}:{self.active_counts[engine]}/{self._capacity(engine)}"
                 if engine == "voxcpm2":
-                    selected["voxcpm_device"] = f"cuda:{self.active_counts[engine] - 1}"
                     self.jobs[job_id]["voxcpm_device"] = selected["voxcpm_device"]
             self.executor.submit(self._run_one, selected)
 
@@ -184,6 +190,8 @@ class JobQueueManager:
         finally:
             with self.condition:
                 engine = job_data["voice_engine"]
+                if engine == "voxcpm2":
+                    cuda_pool.release(job_data.get("voxcpm_device"))
                 self.active_counts[engine] = max(0, self.active_counts[engine] - 1)
                 self.active_jobs.pop(job_id, None)
                 self.active_job_id = next(iter(self.active_jobs), None)
