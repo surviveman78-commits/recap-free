@@ -344,7 +344,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             "tiktok2k": ("20M", "25M", "40M"),
             "tiktok4k": ("35M", "45M", "60M"),
         }.get(output_profile)
-        tiktok_level = "5.2" if output_profile == "tiktok4k" else "5.0" if output_profile == "tiktok2k" else "4.2"
+        # FFmpeg 4.4/NVENC expects H.264 levels as integer codec values
+        # (42/50/52), not decimal strings such as 4.2/5.0/5.2.
+        tiktok_level = "52" if output_profile == "tiktok4k" else "50" if output_profile == "tiktok2k" else "42"
         tiktok_encoder_args = [
             "-b:v", tiktok_bitrate_args[0],
             "-maxrate", tiktok_bitrate_args[1],

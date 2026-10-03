@@ -163,7 +163,9 @@ class AudioMixer:
             # Use TikTok-compatible H.264 profiles while keeping the source
             # aspect ratio. The final subtitle stage applies its bitrate cap
             # when subtitles are enabled; this also covers subtitle-off jobs.
-            tiktok_level = "5.2" if resolution_key == "tiktok4k" else "5.0" if resolution_key == "tiktok2k" else "4.2"
+            # FFmpeg 4.4/NVENC expects H.264 levels as integer codec values
+            # (42/50/52), not the human-readable decimal strings (4.2/5.0/5.2).
+            tiktok_level = "52" if resolution_key == "tiktok4k" else "50" if resolution_key == "tiktok2k" else "42"
             cmd[-1:-1] = ["-profile:v", "high", "-level", tiktok_level, "-tag:v", "avc1"]
 
         if self.progress_callback:
