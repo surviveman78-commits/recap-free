@@ -163,10 +163,11 @@ class AudioMixer:
             # Use TikTok-compatible H.264 profiles while keeping the source
             # aspect ratio. The final subtitle stage applies its bitrate cap
             # when subtitles are enabled; this also covers subtitle-off jobs.
-            # FFmpeg 4.4/NVENC expects H.264 levels as integer codec values
-            # (42/50/52), not the human-readable decimal strings (4.2/5.0/5.2).
-            tiktok_level = "52" if resolution_key == "tiktok4k" else "50" if resolution_key == "tiktok2k" else "42"
-            cmd[-1:-1] = ["-profile:v", "high", "-level", tiktok_level, "-tag:v", "avc1"]
+            # Do not force a fixed H.264 level here.  The app preserves the
+            # source ratio, so square/ultrawide outputs can exceed the macroblock
+            # limits of a nominal TikTok level and NVENC rejects the encode.
+            # Let the selected encoder choose a valid level automatically.
+            cmd[-1:-1] = ["-profile:v", "high", "-tag:v", "avc1"]
 
         if self.progress_callback:
             self.progress_callback(f"{resolution_key} ဗီဒီယိုနှင့် အသံဖိုင် ပေါင်းစပ် rendering ပြုလုပ်နေပါသည် ({encoder_name})...", 65.0)
