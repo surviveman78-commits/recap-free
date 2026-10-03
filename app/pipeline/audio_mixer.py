@@ -175,6 +175,9 @@ class AudioMixer:
             stderr=subprocess.PIPE,
             text=True
         )
+        (output_path.parent / "ffmpeg_audio_mixer_gpu.log").write_text(
+            result.stderr or "", encoding="utf-8", errors="replace"
+        )
 
         if result.returncode != 0:
             # If GPU encoding failed, retry once with CPU libx264 as safety fallback
@@ -197,10 +200,15 @@ class AudioMixer:
                     str(output_path)
                 ]
                 fallback_res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                (output_path.parent / "ffmpeg_audio_mixer_cpu.log").write_text(
+                    fallback_res.stderr or "", encoding="utf-8", errors="replace"
+                )
                 if fallback_res.returncode != 0:
-                    raise RuntimeError("Video rendering failed after CPU fallback. Please check the video format and FFmpeg setup.")
+                    detail = (fallback_res.stderr or result.stderr or "").strip()[-1800:]
+                    raise RuntimeError(f"Video rendering failed after CPU fallback: {detail}")
             else:
-                raise RuntimeError("Video speed adjustment failed. Please check the video format and FFmpeg setup.")
+                detail = (result.stderr or "").strip()[-1800:]
+                raise RuntimeError(f"Video speed adjustment failed: {detail}")
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise RuntimeError("Audio mixing produced empty or missing file.")

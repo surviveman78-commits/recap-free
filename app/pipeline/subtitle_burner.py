@@ -418,6 +418,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             stderr=subprocess.PIPE,
             text=True
         )
+        (output_path.parent / "ffmpeg_subtitle_gpu.log").write_text(
+            result.stderr or "", encoding="utf-8", errors="replace"
+        )
 
         if result.returncode != 0:
             # If GPU encoding failed, retry once with CPU libx264 as safety fallback
@@ -434,10 +437,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     str(output_path.name)
                 ]
                 fallback_res = subprocess.run(fallback_cmd, cwd=str(video_path.parent), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                (output_path.parent / "ffmpeg_subtitle_cpu.log").write_text(
+                    fallback_res.stderr or "", encoding="utf-8", errors="replace"
+                )
                 if fallback_res.returncode != 0:
-                    raise RuntimeError("Video rendering failed after CPU fallback. Please check the video format and FFmpeg setup.")
+                    detail = (fallback_res.stderr or result.stderr or "").strip()[-1800:]
+                    raise RuntimeError(f"Subtitle rendering failed after CPU fallback: {detail}")
             else:
-                raise RuntimeError("Video subtitle rendering failed. Please check the video format and FFmpeg setup.")
+                detail = (result.stderr or "").strip()[-1800:]
+                raise RuntimeError(f"Video subtitle rendering failed: {detail}")
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise RuntimeError("Subtitle burning produced empty or missing file.")

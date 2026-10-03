@@ -397,7 +397,10 @@ class PipelineOrchestrator:
             self.status = "failed"
             err_msg = str(e)
             if any(token in err_msg for token in ("h264_nvenc", "libcuda.so", "Error while filtering", "Nothing was written", "FFmpeg")):
-                sanitized_msg = "ဗီဒီယို rendering မအောင်မြင်ပါ။ GPU မရသဖြင့် CPU fallback ကို စမ်းပြီးပါပြီ။ Video format သို့မဟုတ် FFmpeg setup ကို စစ်ပါ။"
+                sanitized_msg = (
+                    "ဗီဒီယို rendering မအောင်မြင်ပါ။ GPU မရသဖြင့် CPU fallback ကို စမ်းပြီးပါပြီ။\n"
+                    "FFmpeg detail:\n" + err_msg[-1800:]
+                )
             else:
                 sanitized_msg = err_msg
             sanitized_msg = sanitized_msg.replace(groq_api_key, "***") if groq_api_key else sanitized_msg
