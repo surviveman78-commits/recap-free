@@ -107,6 +107,17 @@ class GeminiRewriter:
             return None
         if not all(item in valid_ids for item in source_ids):
             return None
+        # Recap only: the source opening may already be a deliberate hook. In
+        # that case adding another generated hook would play two hooks back to
+        # back. Story keeps its existing hook behavior because its opening is
+        # authored as part of the narrative rewrite.
+        if active_mode == "recap":
+            opening_ids = {
+                seg.get("id") for seg in source_segments
+                if float(seg.get("start", 0.0) or 0.0) < 3.5
+            }
+            if source_ids and set(source_ids).issubset(opening_ids):
+                return None
         # Keep the opening hook short enough to speak in roughly three
         # seconds; this is a guardrail in addition to the model instruction.
         if len(text) > 100 or len(source_ids) > 4:
@@ -221,34 +232,49 @@ into the corresponding segment texts.
             self.progress_callback("Transcript အပြည့်ကို ဖတ်ပြီး video အမျိုးအစား ခွဲနေပါသည်...", 10.0)
 
         story_mode_prompt = """
-You are a professional movie/drama/anime recap writer.
+You are a professional Burmese movie, drama, and anime recap storyteller.
 
-Transform the provided video into an engaging Burmese storytelling recap.
+Transform a transcript that may contain conversations between two or more movie
+characters into a clear, engaging Burmese story narration. This is a narrator
+recap, not a line-by-line dubbing script.
 
-Requirements:
-- Write in natural conversational Burmese.
-- Tell the story naturally, not scene-by-scene summarization.
-- Make the audience feel like they are experiencing the events together with the characters.
-- Focus on tension, emotions, danger, clever decisions, mistakes, twists, and unexpected moments.
-- Maintain strong viewer curiosity throughout the story.
-- Use natural storytelling transitions.
-- Avoid repetitive phrases and AI-sounding narration.
-- Keep the pacing smooth and engaging.
-- Build suspense naturally before important reveals.
-- Make every paragraph give viewers a reason to continue watching.
+MULTI-CHARACTER STORY RULES:
+- First understand each conversation in its scene context: who is speaking,
+  what they want, what they know, what they hide, and how the exchange changes
+  the story.
+- Do not translate every dialogue line separately. Convert dialogue into smooth
+  narrator sentences that explain the important meaning and consequence.
+- Keep character identities and relationships clear. Use a name or a short
+  description when the audience could otherwise confuse two characters.
+- Preserve important arguments, promises, threats, discoveries, decisions,
+  betrayals, emotional changes, and information revealed through dialogue.
+- Never invent a speaker, motive, relationship, event, or twist that is not
+  supported by the transcript.
+- Do not output speaker labels, quotation-heavy dialogue, bullet points, scene
+  headings, or chapter labels. Write one continuous story flow for TTS.
 
-Hook Style:
-- Do not use generic hooks such as “ဒါပေမယ့် သူ မသိသေးတာက...” or “နောက်ထပ် ဖြစ်လာမယ့်အရာက...”.
-- Create curiosity from the actual situation. Hooks may show that a character misunderstands danger, that a decision changes everything, that a hidden detail matters, or that expectations and reality diverge.
+STORY COVERAGE:
+- This is a complete movie recap, not a shallow short summary.
+- Follow the main chain of cause and effect from setup to consequence.
+- Include important visual actions as well as important conversations.
+- Remove only repeated greetings, filler reactions, long pauses, and duplicate
+  information that do not change the plot.
+- Do not repeat an event merely to make the narration longer.
 
-Writing Style:
-- Natural spoken Burmese; short and clear sentences.
-- Emotional but believable, with no exaggerated clickbait.
-- No bullet points, chapter labels, or scene-by-scene headings.
-- Use one continuous storytelling flow that sounds like a human storyteller, not an AI summary.
+WRITING STYLE:
+- Natural spoken Burmese with short, easy-to-hear sentences.
+- Explain the scene like a skilled storyteller speaking to a friend.
+- Focus on tension, emotion, danger, clever decisions, mistakes, reversals,
+  and consequences without exaggerated clickbait.
+- Use natural transitions so the audience understands why the next event occurs.
+- Build curiosity from the actual situation before an important reveal.
+- Avoid robotic phrasing and repetitive openings such as “ဒါပေမယ့် သူ မသိသေးတာက...”
+  or “နောက်ထပ် ဖြစ်လာမယ့်အရာက...”.
 
-Output:
-Generate a complete Burmese recap script optimized for YouTube, TikTok, and Facebook storytelling videos with strong retention and natural audience engagement.
+OUTPUT:
+Generate a complete Burmese movie-story recap optimized for YouTube, TikTok,
+and Facebook narration. Return only the requested JSON structure; the final
+spoken text must remain a continuous narrator script.
 """
         educational_rewrite_prompt = """
 You are an expert Burmese educational storyteller and translator.
@@ -352,6 +378,9 @@ HOOK RULES (Recap and Story only):
 * First inspect the full transcript and choose the strongest source-supported conflict,
   danger, mystery, unexpected change, or turning point.
 * Write one very short natural Burmese opening hook from that event, without inventing facts.
+* Recap mode only: if the source video already begins with a clear hook or
+  attention-grabbing opening, return use_hook=false so the original hook is not
+  followed by a duplicate generated hook. Do not apply this special rule to Story mode.
 * Do not reveal the complete ending, identity reveal, or full twist.
 * The hook is a preview, not a new event and not a summary of the whole video.
 * Link it to the exact source segment ids used.

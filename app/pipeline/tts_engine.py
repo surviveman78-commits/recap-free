@@ -355,7 +355,9 @@ class TTSEngine:
                 "text": text,
                 "display_text": display_text,
                 "duration": dur,
-                "original_id": seg.get("id", idx)
+                "original_id": seg.get("id", idx),
+                "source_start": float(seg.get("start", 0.0) or 0.0),
+                "source_end": float(seg.get("end", 0.0) or 0.0),
             })
 
         if self.progress_callback:
@@ -400,7 +402,11 @@ class TTSEngine:
                 "id": item["original_id"],
                 "start": round(start_t, 3),
                 "end": round(end_t, 3),
-                "text": item["display_text"]
+                "text": item["display_text"],
+                # Keep the source transcript clock so long videos can be
+                # retimed scene-by-scene instead of using one global stretch.
+                "source_start": item["source_start"],
+                "source_end": item["source_end"],
             })
 
             audio_parts.append(data)

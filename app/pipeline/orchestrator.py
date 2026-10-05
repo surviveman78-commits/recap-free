@@ -303,6 +303,7 @@ class PipelineOrchestrator:
                 background_audio_path=background_audio,
                 enable_4k_filter=bool(enable_4k_filter),
                 mirror_mode_7s=bool(mirror_mode_7s),
+                sync_segments=synced_segments,
             )
             self.artifacts["dubbed_video"] = dubbed_video.name
 
