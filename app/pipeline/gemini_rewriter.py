@@ -255,11 +255,20 @@ MULTI-CHARACTER STORY RULES:
 
 STORY COVERAGE:
 - This is a complete movie recap, not a shallow short summary.
-- Follow the main chain of cause and effect from setup to consequence.
-- Include important visual actions as well as important conversations.
-- Remove only repeated greetings, filler reactions, long pauses, and duplicate
-  information that do not change the plot.
-- Do not repeat an event merely to make the narration longer.
+- Read the whole scene and identify its essential story beats before writing:
+  setup, action, reaction, decision, reveal, and consequence.
+- Narrate only the beats the audience needs to understand what happened and why.
+  Do not translate every sentence or every line of dialogue just because it is
+  present in the transcript.
+- Keep the main chain of cause and effect, character intention, important visual
+  actions, emotional changes, threats, reveals, and consequences.
+- Compress greetings, filler reactions, repeated explanations, small-talk,
+  pauses, and dialogue that adds no new information.
+- A source segment may be rewritten as one short narrator sentence, or as a
+  concise bridge to the next beat. Never repeat an event merely to make the
+  narration longer.
+- When a long scene contains several actions, describe them in chronological
+  order with short transitions instead of producing one oversized paragraph.
 
 WRITING STYLE:
 - Natural spoken Burmese with short, easy-to-hear sentences.
@@ -320,6 +329,29 @@ HOOK RULE:
             "story": story_mode_prompt,
             "dubbing": "Translate as natural spoken dubbing for the original scene. Preserve each speaker's meaning, emotion, intensity, and timing; do not summarize or turn dialogue into a narrator recap.",
         }.get(str(processing_mode or "recap").lower(), "Rewrite as a natural movie-recap narration.")
+        if active_mode == "story":
+            coverage_policy = """
+STORY MODE COVERAGE POLICY:
+* Understand the full scene first, then keep only the information needed to
+  follow its important story beats.
+* Do not perform sentence-by-sentence translation of dialogue.
+* Preserve plot-changing actions, motives, conflict, emotion, reveals, and
+  cause-and-effect. Compress filler, repetition, greetings, and reactions that
+  do not change the scene.
+* Keep every input id/start/end in the JSON structure for timeline alignment,
+  but the Burmese text for each segment should be concise and narrator-like.
+* Never invent missing facts and never remove a detail that changes the plot.
+"""
+        else:
+            coverage_policy = """
+SOURCE-COVERAGE SAFETY:
+* Translate every sentence and every proposition in every source segment.
+* The output for each segment must carry the complete meaning of its corresponding source segment.
+* Do not remove details, qualifiers, uncertainty, repetition that carries emphasis, or emotional meaning.
+* Keep every segment. Do not merge, split, reorder, or invent segments.
+* Keep every input id, start, and end EXACTLY unchanged.
+* Use the full transcript only to resolve pronouns or context; never use it to summarize segments.
+"""
         prompt = f"""
 Translate the transcript into natural spoken {lang_name}.
 MODE: {processing_mode}
@@ -330,7 +362,8 @@ Rules:
 * Translate the MEANING, not word-for-word.
 * Make it sound like a native speaker naturally telling a story, NOT like a book or machine translation.
 * Do not copy the original sentence structure if it sounds unnatural.
-* Do not summarize or remove important information.
+* Do not summarize away plot-changing information. Story Mode may compress
+  non-essential dialogue and repeated information according to its coverage policy.
 * Do not add explanations, details, opinions, or information that is not in the original.
 * Follow the mode-specific timing and coverage rule below; do not pad or repeat content.
 * Use natural conversational grammar and expressions.
@@ -342,13 +375,7 @@ Rules:
 * Translate the story, not the words.
 {duration_rule}
 
-SOURCE-COVERAGE SAFETY:
-* Translate every sentence and every proposition in every source segment.
-* The output for each segment must carry the complete meaning of its corresponding source segment.
-* Do not remove details, qualifiers, uncertainty, repetition that carries emphasis, or emotional meaning.
-* Keep every segment. Do not merge, split, reorder, or invent segments.
-* Keep every input id, start, and end EXACTLY unchanged.
-* Use the full transcript only to resolve pronouns or context; never use it to summarize segments.
+{coverage_policy}
 
 OUTPUT: Return ONLY valid JSON with this exact shape:
 {{

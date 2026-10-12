@@ -16,6 +16,7 @@ from app.pipeline.audio_mixer import AudioMixer
 from app.pipeline.vocal_separator import VocalSeparator
 from app.pipeline.subtitle_burner import SubtitleBurner
 from app.pipeline.gemini_blur_detector import GeminiSubtitleBandDetector, padded_band
+from app.pipeline.gemini_action_analyzer import GeminiActionGapAnalyzer
 from app.pipeline.burmese_text import normalize_burmese_digits, prepare_burmese_tts_text
 
 # Exact Burmese stage labels
@@ -174,6 +175,37 @@ class PipelineOrchestrator:
             )
             groq_res = transcriber.transcribe(original_audio, self.job_dir)
             transcript_duration = self._get_transcript_duration(groq_res, source_duration)
+            # Story Mode keeps the normal Whisper-first flow, then fills only
+            # transcript-free windows with selective Gemini Vision action notes.
+            # Recap and Dubbing deliberately bypass this branch.
+            if str(processing_mode).lower() == "story":
+                try:
+                    self._notify(stage_3, 3, "စကားမပြောတဲ့ action-only အပိုင်းတွေကို Vision ဖြင့်ရှာနေပါသည်...", 100.0)
+                    action_analyzer = GeminiActionGapAnalyzer(
+                        api_key=gemini_api_key,
+                        progress_callback=lambda msg, pct: self._notify(stage_3, 3, msg, pct),
+                    )
+                    visual_segments = action_analyzer.analyze(
+                        video_path=video_file,
+                        transcript_segments=groq_res.get("segments", []),
+                        duration=source_duration,
+                        output_dir=self.job_dir,
+                    )
+                    if visual_segments:
+                        combined_segments = [*groq_res.get("segments", []), *visual_segments]
+                        combined_segments.sort(key=lambda item: (float(item.get("start", 0.0)), float(item.get("end", 0.0))))
+                        groq_res["segments"] = combined_segments
+                        groq_res["text"] = (
+                            str(groq_res.get("text", "")).strip()
+                            + "\n"
+                            + "\n".join(f"[Visual action {s['start']:.2f}-{s['end']:.2f}s] {s['text']}" for s in visual_segments)
+                        ).strip()
+                        self.artifacts["story_action_analysis"] = "story_action_analysis.json"
+                        self._notify(stage_3, 3, f"Vision action {len(visual_segments)} ပိုင်းကို Story context ထဲထည့်ပြီးပါပြီ။", 100.0)
+                except Exception as vision_error:
+                    # Visual analysis is an enhancement. If a model/network
+                    # call fails, preserve the normal transcript Story flow.
+                    self._notify(stage_3, 3, f"Vision action analysis မရသဖြင့် transcript Story flow ဖြင့် ဆက်လုပ်နေပါသည်။ ({vision_error})", 100.0)
             self.artifacts["transcript_json"] = "transcript.json"
             self.artifacts["transcript_txt"] = "transcript.txt"
 
@@ -212,7 +244,7 @@ class PipelineOrchestrator:
                     output_dir=self.job_dir,
                     mode=gemini_mode,
                     target_language=target_language,
-                    source_duration=transcript_duration,
+                    source_duration=source_duration if story_requires_gemini else transcript_duration,
                     processing_mode=processing_mode,
                 )
             tts_segments = []
