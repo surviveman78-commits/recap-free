@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="my">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video Merge & TikTok Export · Recap Free</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="merge-page">
+  <div class="bv-ambient-bg"></div>
+  <header class="bv-top-header">
+    <a class="bv-brand" href="/index.html"><span class="bv-brand-mark">▶</span><span>RECAP FREE</span></a>
+    <a class="bv-secondary-3d-btn" href="/index.html">← Dashboard</a>
+  </header>
+  <main class="merge-shell">
+    <section class="merge-hero"><span class="bv-tool-kicker">NEW TOOL · CUSTOM EXPORT</span><h1>Video Merge <span>&</span> TikTok Export</h1><p>Video ၂ ပုဒ် သို့မဟုတ် ၃ ပုဒ်ကို ကိုယ်လိုချင်တဲ့အစဉ်နဲ့ပေါင်းပြီး TikTok အတွက် quality-balanced MP4 ထုတ်ပါ။</p></section>
+    <section class="merge-layout">
+      <div class="bv-3d-card merge-panel">
+        <div class="merge-panel-head"><div><span class="bv-tool-kicker">CLIPS</span><h2>ဗီဒီယိုဖိုင်များ</h2></div><span id="mergeCount" class="merge-count">0 / 3</span></div>
+        <label class="merge-drop" id="mergeDrop"><input id="mergeFiles" type="file" accept="video/*" multiple><span class="merge-drop-icon">＋</span><strong>Video ဖိုင်များရွေးပါ</strong><small>၂ ပုဒ် သို့မဟုတ် ၃ ပုဒ် • MP4, MOV, M4V</small></label>
+        <div id="clipList" class="clip-list"><div class="merge-empty">ဖိုင်ရွေးပြီးရင် preview ဒီနေရာမှာပေါ်ပါမယ်</div></div>
+      </div>
+      <div class="bv-3d-card merge-panel merge-preview-panel">
+        <div class="merge-panel-head"><div><span class="bv-tool-kicker">LIVE PREVIEW</span><h2>ပေါင်းမယ့်အစဉ်</h2></div><span id="mergeStatus" class="merge-status">Ready</span></div>
+        <div class="merge-stage"><video id="mergePreview" controls playsinline></video><div id="mergePreviewEmpty" class="merge-preview-empty">Video ၂ ပုဒ်ရွေးပြီး preview ကြည့်ပါ</div></div>
+        <button id="playSequenceBtn" class="bv-secondary-3d-btn merge-play-sequence" type="button">▶ Play sequence · 1 → 2 → 3</button>
+        <div class="timeline-toolbar"><span>Timeline</span><span id="timelineTime">00:00 / 00:00</span></div>
+        <div class="timeline-scroll"><div id="mergeTimeline" class="merge-timeline"><div class="timeline-empty">Clip တွေထည့်ရင် timeline ပေါ်လာပါမယ်</div><div id="timelinePlayhead" class="timeline-playhead"></div></div></div>
+        <div class="merge-preview-note">Preview က browser ထဲက မူရင်း clip ကိုပြတာဖြစ်ပြီး Export နှိပ်မှ TikTok encoding လုပ်ပါမယ်။</div>
+      </div>
+    </section>
+    <section class="bv-3d-card merge-panel merge-settings-panel">
+      <div class="merge-panel-head"><div><span class="bv-tool-kicker">EXPORT SETTINGS</span><h2>TikTok Quality</h2></div><span class="merge-recommended">Recommended</span></div>
+      <div class="merge-settings-grid">
+        <label><span>Resolution / Profile</span><select id="mergeProfile"><option value="tiktok1080">TikTok 1080p · 10 Mbps</option><option value="tiktok2k">TikTok 2K · 18 Mbps</option><option value="tiktok4k">TikTok 4K · 34 Mbps</option></select></label>
+        <label><span>Ratio handling</span><select id="mergeLayout"><option value="fit">Fit + black background</option><option value="crop">Center crop</option><option value="stretch">Stretch</option></select></label>
+        <label><span>Frame rate</span><select id="mergeFps"><option value="30">30 fps · Recommended</option><option value="60">60 fps · Action source</option></select></label>
+      </div>
+      <div class="merge-spec-strip"><span>H.264 High</span><span>AAC 48kHz · 192 kbps</span><span>yuv420p</span><span>Fast Start ON</span></div>
+      <div class="merge-actions"><div id="mergeError" class="merge-error"></div><button id="mergeExport" class="bv-solid-btn bv-solid-bevel" disabled>Export TikTok MP4 <span>→</span></button></div>
+      <div id="mergeOutput" class="merge-output" hidden><video id="mergeOutputVideo" controls playsinline></video><a id="mergeDownload" class="bv-secondary-3d-btn" download="tiktok_export.mp4">⬇ Download MP4</a></div>
+    </section>
+  </main>
+  <script src="/js/merge-tool.js"></script>
+</body>
+</html>

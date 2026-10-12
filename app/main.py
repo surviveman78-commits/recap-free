@@ -20,6 +20,7 @@ from app.pipeline.gpu_utils import get_active_encoder_name, check_gpu_nvenc_avai
 from app.pipeline.gpu_pool import cuda_pool
 from app.queue_manager import job_queue_manager, EDGE_MAX_CONCURRENT, VOXCPM_MAX_CONCURRENT
 from app.voice_clone_manager import create_job as create_voice_clone_job, get_job as get_voice_clone_job, list_jobs as list_voice_clone_jobs, VOICE_CLONE_DIR
+from app.pipeline.video_merger import merge_videos, PROFILES
 
 
 def _font_family_from_file(font_path: Path) -> str:
@@ -52,6 +53,8 @@ app.add_middleware(
 
 JOBS_DIR = DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
+MERGE_DIR = DATA_DIR / "merge_jobs"
+MERGE_DIR.mkdir(parents=True, exist_ok=True)
 
 jobs_state: Dict[str, Dict[str, Any]] = {}
 job_event_queues: Dict[str, List[asyncio.Queue]] = {}
@@ -102,6 +105,69 @@ class JobCreateRequest(BaseModel):
 @app.get("/api/settings")
 async def get_settings():
     return settings_manager.get_all(mask=True)
+
+
+@app.get("/api/merge/profiles")
+async def get_merge_profiles():
+    return {
+        "profiles": {
+            key: {**value, "target_mbps": value["target"] / 1_000_000, "max_mbps": value["maxrate"] / 1_000_000}
+            for key, value in PROFILES.items()
+        },
+        "recommended": "tiktok1080",
+    }
+
+
+@app.post("/api/merge/export")
+async def export_merged_video(
+    files: List[UploadFile] = File(...),
+    clip_specs: str = Form("[]"),
+    profile: str = Form("tiktok1080"),
+    layout: str = Form("fit"),
+    fps: int = Form(30),
+):
+    if len(files) not in (2, 3):
+        raise HTTPException(status_code=400, detail="Choose 2 or 3 video clips.")
+    if profile not in PROFILES:
+        raise HTTPException(status_code=400, detail="Unsupported TikTok export profile.")
+    if layout not in {"fit", "crop", "stretch"}:
+        raise HTTPException(status_code=400, detail="Unsupported layout mode.")
+    try:
+        specs = json.loads(clip_specs or "[]")
+        if not isinstance(specs, list):
+            raise ValueError("clip_specs must be a list")
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid clip settings: {exc}") from exc
+    job_dir = MERGE_DIR / f"merge_{uuid.uuid4().hex[:10]}"
+    job_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    try:
+        for index, upload in enumerate(files):
+            suffix = Path(upload.filename or ".mp4").suffix.lower()
+            if suffix not in {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}:
+                raise HTTPException(status_code=400, detail=f"Unsupported video format: {suffix}")
+            target = job_dir / f"input_{index}{suffix}"
+            content = await upload.read()
+            if not content:
+                raise HTTPException(status_code=400, detail=f"Empty video file: {upload.filename}")
+            target.write_bytes(content)
+            paths.append(target)
+        output = job_dir / "tiktok_export.mp4"
+        result = merge_videos(paths, specs, output, profile_name=profile, layout=layout, fps=max(24, min(60, fps)))
+        return {"status": "completed", "job_id": job_dir.name, "file_url": f"/api/merge/jobs/{job_dir.name}/file", **result}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/merge/jobs/{job_id}/file")
+async def get_merged_video(job_id: str):
+    safe_id = Path(job_id).name
+    output = MERGE_DIR / safe_id / "tiktok_export.mp4"
+    if not output.is_file():
+        raise HTTPException(status_code=404, detail="Merged export not found.")
+    return FileResponse(output, media_type="video/mp4", filename="tiktok_export.mp4")
 
 
 @app.post("/api/settings")

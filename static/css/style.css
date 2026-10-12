@@ -2909,3 +2909,65 @@ body.voiceclone-page .bv-voice-clone-modal .bv-modal-close-btn { display:none !i
 .bv-video-mode-card.active .bv-video-mode-check { display:block; }
 .bv-video-mode-hint { margin:0; color:var(--text-muted); font-size:.74rem; }
 @media (max-width:560px) { .bv-video-mode-panel { padding:11px; } .bv-video-mode-grid { gap:6px; } .bv-video-mode-card { min-height:62px; gap:5px; padding:8px 6px; } .bv-video-mode-icon { width:23px; height:23px; flex-basis:23px; border-radius:7px; font-size:.68rem; } .bv-video-mode-card strong { font-size:.7rem; } .bv-video-mode-card small { font-size:.56rem; white-space:normal; } }
+
+/* Video Merge & TikTok Export */
+.merge-page { background: var(--bg-app); }
+.merge-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 80px; position: relative; z-index: 1; }
+.merge-hero { margin-bottom: 28px; }
+.merge-hero h1 { font-size: clamp(30px, 5vw, 56px); line-height: 1.08; letter-spacing: -1px; margin: 10px 0; }
+.merge-hero h1 span { color: var(--secondary); }
+.merge-hero p { max-width: 680px; color: var(--text-secondary); font-size: 16px; }
+.merge-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 20px; }
+.merge-panel { padding: 24px; background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-card-3d); }
+.merge-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.merge-panel h2 { font-size: 22px; margin-top: 3px; }
+.merge-count, .merge-status, .merge-recommended { color: var(--text-secondary); font-size: 13px; font-weight: 700; }
+.merge-recommended { color: var(--success); }
+.merge-drop { min-height: 150px; border: 1.5px dashed var(--border-light); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; color: var(--text-secondary); transition: .2s ease; }
+.merge-drop:hover, .merge-drop.dragging { border-color: var(--primary); background: var(--step-active-bg); }
+.merge-drop input { display: none; }
+.merge-drop-icon { font-size: 30px; color: var(--primary); }
+.merge-drop small, .clip-main small { color: var(--text-muted); }
+.merge-empty { padding: 34px 12px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.clip-list { margin-top: 14px; display: grid; gap: 10px; }
+.clip-item { display: grid; grid-template-columns: 26px 58px minmax(0,1fr) 64px; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-card-secondary); }
+.clip-number { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: #fff; font-size: 12px; font-weight: 800; }
+.clip-thumb { width: 58px; height: 58px; border-radius: 8px; overflow: hidden; background: #111827; }
+.clip-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.clip-main { min-width: 0; }
+.clip-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.clip-controls { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.clip-controls label { color: var(--text-muted); font-size: 11px; display: flex; gap: 4px; align-items: center; }
+.clip-controls input[type=number] { width: 54px; border: 1px solid var(--border-light); border-radius: 5px; padding: 3px; background: var(--bg-input); color: var(--text-main); }
+.clip-controls input[type=range] { width: 60px; accent-color: var(--primary); }
+.clip-actions { display: grid; gap: 4px; }
+.clip-actions button { border: 0; border-radius: 5px; background: var(--bg-switcher-track); color: var(--text-secondary); cursor: pointer; min-height: 21px; }
+.clip-actions button:hover:not(:disabled) { color: var(--primary); } .clip-actions button:disabled { opacity: .3; cursor: default; }
+.merge-stage { aspect-ratio: 9 / 16; max-height: 560px; margin: 0 auto; width: min(100%, 315px); background: #090d16; border-radius: 14px; overflow: hidden; position: relative; display: grid; place-items: center; }
+.merge-stage video { width: 100%; height: 100%; object-fit: contain; position: relative; z-index: 1; }
+.merge-play-sequence { display:block; margin:12px auto 0; font-size:12px; }
+.merge-preview-empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 20px; position: absolute; }
+.merge-preview-note { color: var(--text-muted); font-size: 12px; text-align: center; margin: 14px auto 0; max-width: 360px; }
+.timeline-toolbar { display:flex; justify-content:space-between; color:var(--text-secondary); font-size:12px; font-weight:700; margin:18px 0 7px; }
+.timeline-scroll { overflow-x:auto; padding-bottom:5px; }
+.merge-timeline { min-width:520px; height:82px; display:flex; position:relative; gap:3px; padding:12px 4px 8px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border-subtle); cursor:pointer; }
+.timeline-empty { width:100%; display:grid; place-items:center; color:var(--text-muted); font-size:12px; }
+.timeline-clip { flex:0 0 var(--clip-width); min-width:150px; border-radius:7px; padding:9px 10px; display:flex; flex-direction:column; justify-content:center; gap:2px; color:#fff; background:linear-gradient(135deg,#4f46e5,#0891b2); border:1px solid rgba(255,255,255,.35); cursor:grab; overflow:hidden; user-select:none; }
+.timeline-clip:active { cursor:grabbing; }
+.timeline-clip.is-dragging { opacity:.5; transform:scale(.98); }
+.timeline-clip strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+.timeline-clip small { color:rgba(255,255,255,.78); font-size:10px; }
+.timeline-clip-index { font-size:10px; opacity:.75; }
+.timeline-playhead { position:absolute; top:0; bottom:0; left:0; width:2px; background:#ef4444; box-shadow:0 0 0 1px rgba(255,255,255,.45),0 0 8px rgba(239,68,68,.75); pointer-events:none; transition:left .08s linear; }
+.timeline-playhead::before { content:""; position:absolute; top:-2px; left:-4px; width:10px; height:10px; border-radius:50%; background:#ef4444; }
+.merge-settings-panel { margin-top: 20px; }
+.merge-settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.merge-settings-grid label { display: grid; gap: 7px; color: var(--text-secondary); font-size: 13px; font-weight: 700; }
+.merge-settings-grid select { width: 100%; border: 1px solid var(--border-light); border-radius: 9px; padding: 11px 12px; background: var(--bg-input); color: var(--text-main); }
+.merge-spec-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.merge-spec-strip span { border-radius: 999px; padding: 6px 10px; color: var(--text-secondary); background: var(--bg-card-secondary); font-size: 11px; }
+.merge-actions { margin-top: 22px; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.merge-error { color: #ef4444; font-size: 13px; min-height: 20px; }
+.merge-output { display: grid; gap: 14px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--border-subtle); }
+.merge-output video { width: min(100%, 360px); max-height: 520px; background: #090d16; border-radius: 12px; }
+@media (max-width: 760px) { .merge-shell { width: min(100% - 20px, 640px); padding-top: 28px; } .merge-layout { grid-template-columns: 1fr; } .merge-panel { padding: 16px; } .merge-settings-grid { grid-template-columns: 1fr; } .merge-actions { align-items: stretch; flex-direction: column; } .merge-actions button { width: 100%; justify-content: center; } }

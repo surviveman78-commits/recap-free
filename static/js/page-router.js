@@ -8,6 +8,8 @@
   const recapCard = document.getElementById("recapToolCard");
   const voiceBtn = document.getElementById("openVoiceCloneBtn");
   const voiceCard = document.getElementById("voiceCloneToolCard");
+  const mergeBtn = document.getElementById("openMergeToolBtn");
+  const mergeCard = document.getElementById("mergeToolCard");
   const voiceTopDashboardBtn = document.getElementById("voiceCloneTopDashboardBtn");
   const toolHub = document.getElementById("toolHub");
   const moreTools = document.getElementById("moreToolsSection");
@@ -26,6 +28,8 @@
     if (recapCard) recapCard.onclick = () => go("/recap.html");
     if (voiceBtn) voiceBtn.onclick = (event) => { event.stopPropagation(); go("/voiceclone.html"); };
     if (voiceCard) voiceCard.onclick = () => go("/voiceclone.html");
+    if (mergeBtn) mergeBtn.onclick = (event) => { event.stopPropagation(); go("/merge.html"); };
+    if (mergeCard) mergeCard.onclick = () => go("/merge.html");
     return;
   }
 
